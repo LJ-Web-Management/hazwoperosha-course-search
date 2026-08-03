@@ -173,6 +173,19 @@ detail rows on small screens. If you add another element that's conditionally `f
 *and* toggled via the `hidden` attribute, apply the same pattern or it will silently render
 open by default.
 
+**Related trap: shorthand `overflow` silently wins over a longhand set on the same element by
+another same-specificity class, based on source order, not which one "looks more specific" to
+a reader.** `.panel { overflow: hidden; ... }` is shared by every card-style container
+(`.panel-accent` top bar + box-shadow look). `.sidebar-panel` needs `overflow-y: auto` (it's a
+scrollable list) while still getting the `.panel` look - but `.panel`'s `overflow: hidden`
+shorthand sets *both* axes, and because `.panel` is declared later in the file with equal
+(single-class) specificity, it silently re-hides the y-axis even though `.sidebar-panel`'s own
+rule "looks like" it should apply. Fixed by bumping specificity instead of fighting source
+order: `.sidebar-panel.panel { overflow-x: hidden; overflow-y: auto; }` (two classes = higher
+specificity than `.panel` alone, wins regardless of order). If you add another element that
+needs the `.panel` card look *plus* a scrolling/overflow behavior `.panel` doesn't have, use
+the same two-class-selector override rather than assuming declaration order will save you.
+
 ## Testing changes
 
 No test suite. Verify manually:
