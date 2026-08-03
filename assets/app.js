@@ -99,7 +99,12 @@
 
   function fmtMoney(n) {
     if (n === null || n === undefined || n === "") return "-";
-    return "$" + Number(n).toFixed(2);
+    return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtNumber(n) {
+    if (n === null || n === undefined || n === "") return "-";
+    return Number(n).toLocaleString("en-US");
   }
 
   function escapeHtml(str) {
@@ -215,7 +220,7 @@
       '<div class="bundle-scope">' + escapeHtml(bundle.scope || "") + "</div>" +
       '<div class="bundle-stats">' +
       '<div class="bundle-stat"><div class="label">Price Tier</div><div class="value">' + escapeHtml(bundle.priceTier) + "</div></div>" +
-      '<div class="bundle-stat"><div class="label">Total Courses</div><div class="value">' + escapeHtml(bundle.totalCourses) + "</div></div>" +
+      '<div class="bundle-stat"><div class="label">Total Courses</div><div class="value">' + fmtNumber(bundle.totalCourses) + "</div></div>" +
       '<div class="bundle-stat"><div class="label">Bundle Price / Seat / Yr</div><div class="value">' + fmtMoney(bundle.bundlePrice) + "</div></div>" +
       '<div class="bundle-stat"><div class="label">À La Carte Cost</div><div class="value">' + fmtMoney(bundle.costSeparate) + "</div></div>" +
       (savingsPct !== null
@@ -308,7 +313,7 @@
       '<td data-label="Bundle Name" class="course-name-cell">' + highlight(b.name, q) + "</td>" +
       '<td data-label="Type"><span class="pill">' + escapeHtml(b.type) + "</span></td>" +
       '<td data-label="Price Tier">' + escapeHtml(b.priceTier) + "</td>" +
-      '<td data-label="# Courses">' + escapeHtml(b.totalCourses) + "</td>" +
+      '<td data-label="# Courses">' + fmtNumber(b.totalCourses) + "</td>" +
       '<td data-label="Price / Seat / Yr" class="msrp-cell">' + fmtMoney(b.bundlePrice) + "</td>" +
       '<td data-label="Savings">' + (savingsPct !== null ? savingsPct + "%" : "-") + "</td>";
 
@@ -340,7 +345,7 @@
       '<span class="pill">' + escapeHtml(b.type) + "</span>" +
       '<span class="pill">' + escapeHtml(b.priceTier) + "</span>" +
       "</div>" +
-      '<div class="card-industries">' + escapeHtml(b.totalCourses) + " courses" + "</div>" +
+      '<div class="card-industries">' + fmtNumber(b.totalCourses) + " courses" + "</div>" +
       '<div class="card-meta-row"><span>' + (savingsPct !== null ? savingsPct + "% savings" : "") + '</span><span class="msrp-cell">' + fmtMoney(b.bundlePrice) + "</span></div>";
     card.addEventListener("click", function () {
       openBundleDetailModal(b);
@@ -421,7 +426,7 @@
       noun = "course";
     }
 
-    els.resultCount.innerHTML = "<strong>" + rows.length + "</strong> " + noun + (rows.length === 1 ? "" : "s") + " found";
+    els.resultCount.innerHTML = "<strong>" + fmtNumber(rows.length) + "</strong> " + noun + (rows.length === 1 ? "" : "s") + " found";
 
     els.resultsBody.innerHTML = "";
     els.resultsGrid.innerHTML = "";
