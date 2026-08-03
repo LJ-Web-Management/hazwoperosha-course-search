@@ -1,4 +1,4 @@
-# Course Catalog Search — Internal Tool
+# Course Catalog Search - Internal Tool
 
 A static search tool for the HAZWOPER OSHA Training course catalog. See `CLAUDE.md` for full
 technical/architecture notes.
@@ -75,7 +75,7 @@ must be regenerated any time that spreadsheet changes. It is not meant to be han
    categories = sorted({c["category"] for c in courses})
 
    with open(OUT, "w") as f:
-       f.write("// Auto-generated from ICTrainingUS_reviewed.xlsx — do not hand-edit.\n")
+       f.write("// Auto-generated from ICTrainingUS_reviewed.xlsx - do not hand-edit.\n")
        f.write("const COURSES = " + json.dumps(courses, ensure_ascii=False) + ";\n")
        f.write("const BUNDLES = " + json.dumps(bundles, ensure_ascii=False) + ";\n")
        f.write("const BUNDLE_CONTENTS = " + json.dumps(contents, ensure_ascii=False) + ";\n")

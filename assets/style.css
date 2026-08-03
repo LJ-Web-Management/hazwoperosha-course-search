@@ -69,9 +69,74 @@ header.site-header {
 }
 
 main {
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.sidebar-panel {
+  border: 1px solid var(--zinc-200);
+  border-radius: 10px;
+  padding: 16px;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--zinc-500);
+  margin-bottom: 10px;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.category-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--zinc-700);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.category-item:hover {
+  background: var(--zinc-50);
+}
+
+.category-item.active {
+  background: var(--foreground);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .panel {
@@ -91,10 +156,43 @@ main {
   padding: 20px 20px 16px;
 }
 
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--zinc-300);
+  background: var(--background);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--zinc-700);
+}
+
+.mode-btn:hover {
+  border-color: var(--zinc-400);
+}
+
+.mode-btn.active {
+  background: var(--foreground);
+  color: var(--accent);
+  border-color: var(--foreground);
+}
+
 .search-row {
   display: flex;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.industry-field {
+  flex: 0 0 260px;
 }
 
 .search-input-wrap {
@@ -132,22 +230,6 @@ input[type="text"]:focus,
 select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 205, 8, 0.35);
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.field label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--zinc-500);
-  margin-bottom: 6px;
 }
 
 select {
@@ -239,20 +321,6 @@ button.clear-btn:hover {
 .view-btn.active {
   background: var(--foreground);
   color: var(--accent);
-}
-
-.bundle-card {
-  margin-top: 18px;
-  border: 1px solid var(--zinc-200);
-  border-radius: 10px;
-  padding: 16px 20px;
-  background: #fffdf0;
-  border-left: 4px solid var(--accent);
-}
-
-.bundle-card h3 {
-  margin: 0 0 4px;
-  font-size: 16px;
 }
 
 .bundle-type-badge {
@@ -519,6 +587,50 @@ table.results-table td {
   padding: 20px;
 }
 
+.modal-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--zinc-500);
+  margin: 18px 0 8px;
+}
+
+.bundle-course-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bundle-course-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--zinc-200);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--background);
+}
+
+.bundle-course-item:hover {
+  background: var(--zinc-50);
+  border-color: var(--zinc-300);
+}
+
+.bundle-course-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.bundle-course-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 footer.site-footer {
   margin-top: 40px;
 }
@@ -535,9 +647,25 @@ footer.site-footer {
   gap: 6px;
 }
 
+@media (max-width: 900px) {
+  .layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+  }
+  .sidebar-panel {
+    position: static;
+    max-height: 260px;
+  }
+}
+
 @media (max-width: 640px) {
   .search-row {
     flex-direction: column;
+  }
+  .industry-field {
+    flex-basis: auto;
   }
   table.results-table thead {
     display: none;

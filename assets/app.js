@@ -2,20 +2,22 @@
   "use strict";
 
   var VIEW_STORAGE_KEY = "hzw_view_mode_v1";
+  var MODE_STORAGE_KEY = "hzw_search_mode_v1";
 
   var state = {
     view: localStorage.getItem(VIEW_STORAGE_KEY) === "grid" ? "grid" : "list",
+    mode: localStorage.getItem(MODE_STORAGE_KEY) === "bundles" ? "bundles" : "courses",
+    category: "",
   };
+
+  var bundleIndustryTags = {}; // bundle.id -> Set of industry names covered by its courses
 
   var els = {
     search: document.getElementById("search-input"),
-    category: document.getElementById("category-select"),
     industry: document.getElementById("industry-select"),
-    bundleIndustry: document.getElementById("bundle-industry-select"),
-    bundleCategory: document.getElementById("bundle-category-select"),
+    categoryList: document.getElementById("category-list"),
     clear: document.getElementById("clear-btn"),
     resultCount: document.getElementById("result-count"),
-    bundleCard: document.getElementById("bundle-card"),
     resultsBody: document.getElementById("results-body"),
     resultsWrap: document.getElementById("results-wrap"),
     resultsTable: document.querySelector("table.results-table"),
@@ -24,15 +26,17 @@
     tableHead: document.getElementById("table-head"),
     viewListBtn: document.getElementById("view-list-btn"),
     viewGridBtn: document.getElementById("view-grid-btn"),
+    modeCoursesBtn: document.getElementById("mode-courses-btn"),
+    modeBundlesBtn: document.getElementById("mode-bundles-btn"),
     modalOverlay: document.getElementById("modal-overlay"),
     modalTitle: document.getElementById("modal-title"),
     modalBody: document.getElementById("modal-body"),
     modalClose: document.getElementById("modal-close"),
   };
 
-  // ---------- select population ----------
+  // ---------- setup: selects, sidebar, derived indexes ----------
 
-  function rebuildSelect(selectEl, values, placeholder, currentValue) {
+  function rebuildSelect(selectEl, values, placeholder) {
     selectEl.innerHTML = "";
     var opt0 = document.createElement("option");
     opt0.value = "";
@@ -44,43 +48,57 @@
       opt.textContent = v;
       selectEl.appendChild(opt);
     });
-    selectEl.value = currentValue || "";
   }
 
-  function populateBundleSelects() {
-    var byIndustry = BUNDLES.filter(function (b) {
-      return b.type === "By Industry";
-    });
-    var byCategory = BUNDLES.filter(function (b) {
-      return b.type === "By Category";
-    });
+  function populateCategoryList() {
+    var frag = document.createDocumentFragment();
 
-    function fill(selectEl, placeholder, list) {
-      var opt0 = document.createElement("option");
-      opt0.value = "";
-      opt0.textContent = placeholder;
-      selectEl.appendChild(opt0);
-      list
-        .slice()
-        .sort(function (a, b) {
-          return a.name.localeCompare(b.name);
-        })
-        .forEach(function (b) {
-          var opt = document.createElement("option");
-          opt.value = b.id;
-          opt.textContent = b.name;
-          selectEl.appendChild(opt);
+    function addItem(label, value) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "category-item";
+      btn.textContent = label;
+      btn.dataset.category = value;
+      if (value === state.category) btn.classList.add("active");
+      btn.addEventListener("click", function () {
+        state.category = value;
+        Array.prototype.forEach.call(els.categoryList.querySelectorAll(".category-item"), function (el) {
+          el.classList.toggle("active", el.dataset.category === value);
         });
+        render();
+      });
+      frag.appendChild(btn);
     }
 
-    fill(els.bundleIndustry, "All Industry Bundles", byIndustry);
-    fill(els.bundleCategory, "All Category Bundles", byCategory);
+    addItem("All Categories", "");
+    CATEGORIES.forEach(function (cat) {
+      addItem(cat, cat);
+    });
+    els.categoryList.appendChild(frag);
+  }
+
+  function findCourseByName(name) {
+    return COURSES.filter(function (c) {
+      return c.name === name;
+    })[0];
+  }
+
+  function buildBundleIndustryIndex() {
+    BUNDLES.forEach(function (b) {
+      var set = new Set();
+      if (b.type === "By Industry") set.add(b.name);
+      (BUNDLE_CONTENTS[b.id] || []).forEach(function (c) {
+        var full = findCourseByName(c.name);
+        if (full) full.industryTags.forEach(function (t) { set.add(t); });
+      });
+      bundleIndustryTags[b.id] = set;
+    });
   }
 
   // ---------- helpers ----------
 
   function fmtMoney(n) {
-    if (n === null || n === undefined || n === "") return "—";
+    if (n === null || n === undefined || n === "") return "-";
     return "$" + Number(n).toFixed(2);
   }
 
@@ -106,22 +124,6 @@
     );
   }
 
-  function findCourseByName(name) {
-    return COURSES.filter(function (c) {
-      return c.name === name;
-    })[0];
-  }
-
-  var bundleTableHeadHtml =
-    "<tr>" +
-    "<th>Course Name</th>" +
-    "<th>Category</th>" +
-    "<th>Course Type</th>" +
-    "<th>Duration</th>" +
-    "<th>MSRP</th>" +
-    "<th>Inclusion</th>" +
-    "</tr>";
-
   var catalogTableHeadHtml =
     "<tr>" +
     "<th>Course Name</th>" +
@@ -132,42 +134,23 @@
     "<th>MSRP</th>" +
     "</tr>";
 
-  // ---------- bundle summary card ----------
-
-  function renderBundleCard(bundle) {
-    if (!bundle) {
-      els.bundleCard.hidden = true;
-      els.bundleCard.innerHTML = "";
-      return;
-    }
-    var savingsPct = bundle.savings ? Math.round(bundle.savings * 1000) / 10 : null;
-    els.bundleCard.hidden = false;
-    els.bundleCard.innerHTML =
-      '<span class="bundle-type-badge">' + escapeHtml(bundle.type) + "</span>" +
-      "<h3>" + escapeHtml(bundle.name) + "</h3>" +
-      '<div class="bundle-scope">' + escapeHtml(bundle.scope || "") + "</div>" +
-      '<div class="bundle-stats">' +
-      '<div class="bundle-stat"><div class="label">Price Tier</div><div class="value">' + escapeHtml(bundle.priceTier) + "</div></div>" +
-      '<div class="bundle-stat"><div class="label">Total Courses</div><div class="value">' + escapeHtml(bundle.totalCourses) + "</div></div>" +
-      '<div class="bundle-stat"><div class="label">Bundle Price / Seat / Yr</div><div class="value">' + fmtMoney(bundle.bundlePrice) + "</div></div>" +
-      '<div class="bundle-stat"><div class="label">À La Carte Cost</div><div class="value">' + fmtMoney(bundle.costSeparate) + "</div></div>" +
-      (savingsPct !== null
-        ? '<div class="bundle-stat"><div class="label">Savings</div><div class="value">' + savingsPct + "%</div></div>"
-        : "") +
-      "</div>" +
-      (bundle.alaCarteTerms
-        ? '<div class="bundle-scope" style="margin-top:10px;"><strong>À la carte terms:</strong> ' + escapeHtml(bundle.alaCarteTerms) + "</div>"
-        : "");
-  }
+  var bundlesTableHeadHtml =
+    "<tr>" +
+    "<th>Bundle Name</th>" +
+    "<th>Type</th>" +
+    "<th>Price Tier</th>" +
+    "<th># Courses</th>" +
+    "<th>Price / Seat / Yr</th>" +
+    "<th>Savings</th>" +
+    "</tr>";
 
   // ---------- filtering ----------
 
   function currentFilters() {
     return {
       q: els.search.value.trim(),
-      category: els.category.value,
+      category: state.category,
       industry: els.industry.value,
-      bundleId: els.bundleIndustry.value || els.bundleCategory.value,
     };
   }
 
@@ -184,16 +167,20 @@
     });
   }
 
-  function filterBundleContents(bundleId, q) {
-    var list = BUNDLE_CONTENTS[bundleId] || [];
-    if (!q) return list;
-    var ql = q.toLowerCase();
-    return list.filter(function (c) {
-      return (c.name + " " + c.category).toLowerCase().indexOf(ql) !== -1;
+  function filterBundles(f) {
+    var q = f.q.toLowerCase();
+    return BUNDLES.filter(function (b) {
+      if (f.category && (b.scope || "").toLowerCase().indexOf(f.category.toLowerCase()) === -1) return false;
+      if (f.industry && !(bundleIndustryTags[b.id] && bundleIndustryTags[b.id].has(f.industry))) return false;
+      if (q) {
+        var hay = (b.name + " " + (b.scope || "") + " " + b.type).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
     });
   }
 
-  // ---------- detail content (shared by list-expand and modal) ----------
+  // ---------- course detail content (shared by list-expand and modal) ----------
 
   function detailGridHtml(c, extraStatus) {
     return (
@@ -201,11 +188,11 @@
       (extraStatus
         ? '<div><div class="label">Bundle Inclusion</div><div class="value"><span class="pill pill-accent">' + escapeHtml(extraStatus) + "</span></div></div>"
         : "") +
-      '<div><div class="label">Regulatory Body</div><div class="value">' + escapeHtml(c.regBody || "—") + "</div></div>" +
-      '<div><div class="label">Citation</div><div class="value">' + escapeHtml(c.citation || "—") + "</div></div>" +
-      '<div><div class="label">Course Family</div><div class="value">' + escapeHtml(c.family || "—") + "</div></div>" +
-      '<div><div class="label">Bundle Class</div><div class="value">' + escapeHtml(c.bundleClass || "—") + "</div></div>" +
-      '<div><div class="label">Primary Industries</div><div class="value">' + escapeHtml(c.industries || "—") + "</div></div>" +
+      '<div><div class="label">Regulatory Body</div><div class="value">' + escapeHtml(c.regBody || "-") + "</div></div>" +
+      '<div><div class="label">Citation</div><div class="value">' + escapeHtml(c.citation || "-") + "</div></div>" +
+      '<div><div class="label">Course Family</div><div class="value">' + escapeHtml(c.family || "-") + "</div></div>" +
+      '<div><div class="label">Bundle Class</div><div class="value">' + escapeHtml(c.bundleClass || "-") + "</div></div>" +
+      '<div><div class="label">Primary Industries</div><div class="value">' + escapeHtml(c.industries || "-") + "</div></div>" +
       '<div><div class="label">Industry Bundle Tags</div><div class="value">' +
       (c.industryTags && c.industryTags.length
         ? c.industryTags
@@ -213,13 +200,60 @@
               return '<span class="pill pill-accent" style="margin:2px 4px 2px 0;">' + escapeHtml(t) + "</span>";
             })
             .join("")
-        : "—") +
+        : "-") +
       "</div></div>" +
       "</div>"
     );
   }
 
-  // ---------- list (table) rendering ----------
+  // ---------- bundle detail content (shared by list-expand and modal) ----------
+
+  function bundleStatsHtml(bundle) {
+    var savingsPct = bundle.savings ? Math.round(bundle.savings * 1000) / 10 : null;
+    return (
+      '<span class="bundle-type-badge">' + escapeHtml(bundle.type) + "</span>" +
+      '<div class="bundle-scope">' + escapeHtml(bundle.scope || "") + "</div>" +
+      '<div class="bundle-stats">' +
+      '<div class="bundle-stat"><div class="label">Price Tier</div><div class="value">' + escapeHtml(bundle.priceTier) + "</div></div>" +
+      '<div class="bundle-stat"><div class="label">Total Courses</div><div class="value">' + escapeHtml(bundle.totalCourses) + "</div></div>" +
+      '<div class="bundle-stat"><div class="label">Bundle Price / Seat / Yr</div><div class="value">' + fmtMoney(bundle.bundlePrice) + "</div></div>" +
+      '<div class="bundle-stat"><div class="label">À La Carte Cost</div><div class="value">' + fmtMoney(bundle.costSeparate) + "</div></div>" +
+      (savingsPct !== null
+        ? '<div class="bundle-stat"><div class="label">Savings</div><div class="value">' + savingsPct + "%</div></div>"
+        : "") +
+      "</div>" +
+      (bundle.alaCarteTerms
+        ? '<div class="bundle-scope" style="margin-top:10px;"><strong>À la carte terms:</strong> ' + escapeHtml(bundle.alaCarteTerms) + "</div>"
+        : "")
+    );
+  }
+
+  function buildBundleCourseListEl(bundle) {
+    var wrap = document.createElement("div");
+    wrap.className = "bundle-course-list";
+    var contents = BUNDLE_CONTENTS[bundle.id] || [];
+    contents.forEach(function (c) {
+      var isFlat = /Flat/i.test(c.status || "");
+      var item = document.createElement("div");
+      item.className = "bundle-course-item";
+      item.innerHTML =
+        '<div class="bundle-course-name">' + escapeHtml(c.name) + "</div>" +
+        '<div class="bundle-course-meta">' +
+        '<span class="pill">' + escapeHtml(c.category) + "</span>" +
+        '<span class="pill ' + (isFlat ? "pill-accent" : "") + '">' + escapeHtml(c.status) + "</span>" +
+        '<span class="msrp-cell">' + fmtMoney(c.msrp) + "</span>" +
+        "</div>";
+      item.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var full = findCourseByName(c.name);
+        if (full) openCourseDetailModal(full, c.status);
+      });
+      wrap.appendChild(item);
+    });
+    return wrap;
+  }
+
+  // ---------- list (table) rendering: courses ----------
 
   function buildCatalogRow(c, q) {
     var tr = document.createElement("tr");
@@ -227,7 +261,7 @@
       '<td data-label="Course Name" class="course-name-cell">' + highlight(c.name, q) + "</td>" +
       '<td data-label="Category"><span class="pill">' + escapeHtml(c.category) + "</span></td>" +
       '<td data-label="Course Type">' + escapeHtml(c.type) + "</td>" +
-      '<td data-label="Industries">' + escapeHtml(c.industries || "—") + "</td>" +
+      '<td data-label="Industries">' + escapeHtml(c.industries || "-") + "</td>" +
       '<td data-label="Duration">' + escapeHtml(c.duration) + "</td>" +
       '<td data-label="MSRP" class="msrp-cell">' + fmtMoney(c.msrp) + "</td>";
 
@@ -246,36 +280,6 @@
     return [tr, detailTr];
   }
 
-  function buildBundleRow(c, q) {
-    var tr = document.createElement("tr");
-    var isFlat = /Flat/i.test(c.status || "");
-    tr.innerHTML =
-      '<td data-label="Course Name" class="course-name-cell">' + highlight(c.name, q) + "</td>" +
-      '<td data-label="Category"><span class="pill">' + escapeHtml(c.category) + "</span></td>" +
-      '<td data-label="Course Type">' + escapeHtml(c.type) + "</td>" +
-      '<td data-label="Duration">' + escapeHtml(c.duration) + "</td>" +
-      '<td data-label="MSRP" class="msrp-cell">' + fmtMoney(c.msrp) + "</td>" +
-      '<td data-label="Inclusion"><span class="pill ' + (isFlat ? "pill-accent" : "") + '">' + escapeHtml(c.status) + "</span></td>";
-
-    var full = findCourseByName(c.name);
-    var detailTr = document.createElement("tr");
-    detailTr.className = "detail-row";
-    detailTr.hidden = true;
-    if (full) {
-      var td = document.createElement("td");
-      td.colSpan = 6;
-      td.innerHTML = detailGridHtml(full, c.status);
-      detailTr.appendChild(td);
-      tr.addEventListener("click", function () {
-        detailTr.hidden = !detailTr.hidden;
-      });
-    }
-
-    return full ? [tr, detailTr] : [tr];
-  }
-
-  // ---------- grid (card) rendering ----------
-
   function buildCatalogCard(c, q) {
     var card = document.createElement("div");
     card.className = "course-card";
@@ -290,31 +294,57 @@
       (c.industries ? '<div class="card-industries">' + escapeHtml(c.industries) + "</div>" : "") +
       '<div class="card-meta-row"><span>' + escapeHtml(c.duration) + '</span><span class="msrp-cell">' + fmtMoney(c.msrp) + "</span></div>";
     card.addEventListener("click", function () {
-      openDetailModal(c);
+      openCourseDetailModal(c);
     });
     return card;
   }
 
-  function buildBundleCard(c, q) {
+  // ---------- list (table) rendering: bundles ----------
+
+  function buildBundleListRow(b, q) {
+    var savingsPct = b.savings ? Math.round(b.savings * 1000) / 10 : null;
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td data-label="Bundle Name" class="course-name-cell">' + highlight(b.name, q) + "</td>" +
+      '<td data-label="Type"><span class="pill">' + escapeHtml(b.type) + "</span></td>" +
+      '<td data-label="Price Tier">' + escapeHtml(b.priceTier) + "</td>" +
+      '<td data-label="# Courses">' + escapeHtml(b.totalCourses) + "</td>" +
+      '<td data-label="Price / Seat / Yr" class="msrp-cell">' + fmtMoney(b.bundlePrice) + "</td>" +
+      '<td data-label="Savings">' + (savingsPct !== null ? savingsPct + "%" : "-") + "</td>";
+
+    var detailTr = document.createElement("tr");
+    detailTr.className = "detail-row";
+    detailTr.hidden = true;
+    var td = document.createElement("td");
+    td.colSpan = 6;
+    td.innerHTML = bundleStatsHtml(b) + '<div class="modal-section-title">Courses in this bundle</div>';
+    td.appendChild(buildBundleCourseListEl(b));
+    detailTr.appendChild(td);
+
+    tr.addEventListener("click", function () {
+      detailTr.hidden = !detailTr.hidden;
+    });
+
+    return [tr, detailTr];
+  }
+
+  function buildBundleGridCard(b, q) {
+    var savingsPct = b.savings ? Math.round(b.savings * 1000) / 10 : null;
     var card = document.createElement("div");
     card.className = "course-card";
-    var isFlat = /Flat/i.test(c.status || "");
     card.innerHTML =
       '<div class="card-top">' +
-      '<div class="card-name">' + highlight(c.name, q) + "</div>" +
+      '<div class="card-name">' + highlight(b.name, q) + "</div>" +
       "</div>" +
       '<div class="card-pills">' +
-      '<span class="pill">' + escapeHtml(c.category) + "</span>" +
-      '<span class="pill">' + escapeHtml(c.type) + "</span>" +
-      '<span class="pill ' + (isFlat ? "pill-accent" : "") + '">' + escapeHtml(c.status) + "</span>" +
+      '<span class="pill">' + escapeHtml(b.type) + "</span>" +
+      '<span class="pill">' + escapeHtml(b.priceTier) + "</span>" +
       "</div>" +
-      '<div class="card-meta-row"><span>' + escapeHtml(c.duration) + '</span><span class="msrp-cell">' + fmtMoney(c.msrp) + "</span></div>";
-    var full = findCourseByName(c.name);
-    if (full) {
-      card.addEventListener("click", function () {
-        openDetailModal(full, c.status);
-      });
-    }
+      '<div class="card-industries">' + escapeHtml(b.totalCourses) + " courses" + "</div>" +
+      '<div class="card-meta-row"><span>' + (savingsPct !== null ? savingsPct + "% savings" : "") + '</span><span class="msrp-cell">' + fmtMoney(b.bundlePrice) + "</span></div>";
+    card.addEventListener("click", function () {
+      openBundleDetailModal(b);
+    });
     return card;
   }
 
@@ -330,7 +360,7 @@
     els.modalBody.innerHTML = "";
   }
 
-  function openDetailModal(c, extraStatus) {
+  function openCourseDetailModal(c, extraStatus) {
     openModal(c.name);
     els.modalBody.innerHTML =
       '<div class="card-pills" style="margin-bottom:14px;">' +
@@ -340,6 +370,12 @@
       '<span class="pill msrp-cell">' + fmtMoney(c.msrp) + "</span>" +
       "</div>" +
       detailGridHtml(c, extraStatus);
+  }
+
+  function openBundleDetailModal(b) {
+    openModal(b.name);
+    els.modalBody.innerHTML = bundleStatsHtml(b) + '<div class="modal-section-title">Courses in this bundle</div>';
+    els.modalBody.appendChild(buildBundleCourseListEl(b));
   }
 
   // ---------- main render ----------
@@ -355,32 +391,37 @@
     els.resultsGrid.hidden = view !== "grid";
   }
 
+  function setMode(mode) {
+    state.mode = mode;
+    localStorage.setItem(MODE_STORAGE_KEY, mode);
+    els.modeCoursesBtn.classList.toggle("active", mode === "courses");
+    els.modeBundlesBtn.classList.toggle("active", mode === "bundles");
+    els.modeCoursesBtn.setAttribute("aria-pressed", mode === "courses");
+    els.modeBundlesBtn.setAttribute("aria-pressed", mode === "bundles");
+    els.search.placeholder = mode === "bundles" ? "Search by bundle name…" : "Search by course name…";
+    render();
+  }
+
   function render() {
     var f = currentFilters();
-    var isBundleMode = !!f.bundleId;
-    var bundle = isBundleMode
-      ? BUNDLES.filter(function (b) {
-          return b.id === f.bundleId;
-        })[0]
-      : null;
+    var isBundles = state.mode === "bundles";
 
-    renderBundleCard(bundle);
-
-    els.industry.disabled = isBundleMode;
-    els.category.disabled = isBundleMode;
-    els.bundleIndustry.disabled = !!els.bundleCategory.value;
-    els.bundleCategory.disabled = !!els.bundleIndustry.value;
-
-    var rows;
-    if (isBundleMode) {
-      rows = filterBundleContents(f.bundleId, f.q);
-      els.tableHead.innerHTML = bundleTableHeadHtml;
+    var rows, rowBuilder, cardBuilder, noun;
+    if (isBundles) {
+      rows = filterBundles(f);
+      els.tableHead.innerHTML = bundlesTableHeadHtml;
+      rowBuilder = buildBundleListRow;
+      cardBuilder = buildBundleGridCard;
+      noun = "bundle";
     } else {
       rows = filterCatalog(f);
       els.tableHead.innerHTML = catalogTableHeadHtml;
+      rowBuilder = buildCatalogRow;
+      cardBuilder = buildCatalogCard;
+      noun = "course";
     }
 
-    els.resultCount.innerHTML = "<strong>" + rows.length + "</strong> course" + (rows.length === 1 ? "" : "s") + " found";
+    els.resultCount.innerHTML = "<strong>" + rows.length + "</strong> " + noun + (rows.length === 1 ? "" : "s") + " found";
 
     els.resultsBody.innerHTML = "";
     els.resultsGrid.innerHTML = "";
@@ -396,13 +437,11 @@
     var tableFrag = document.createDocumentFragment();
     var gridFrag = document.createDocumentFragment();
 
-    rows.forEach(function (c) {
-      var rowBuilder = isBundleMode ? buildBundleRow : buildCatalogRow;
-      var cardBuilder = isBundleMode ? buildBundleCard : buildCatalogCard;
-      rowBuilder(c, f.q).forEach(function (el) {
+    rows.forEach(function (item) {
+      rowBuilder(item, f.q).forEach(function (el) {
         tableFrag.appendChild(el);
       });
-      gridFrag.appendChild(cardBuilder(c, f.q));
+      gridFrag.appendChild(cardBuilder(item, f.q));
     });
 
     els.resultsBody.appendChild(tableFrag);
@@ -411,29 +450,21 @@
 
   function clearFilters() {
     els.search.value = "";
-    els.category.value = "";
     els.industry.value = "";
-    els.bundleIndustry.value = "";
-    els.bundleCategory.value = "";
+    state.category = "";
+    Array.prototype.forEach.call(els.categoryList.querySelectorAll(".category-item"), function (el) {
+      el.classList.toggle("active", el.dataset.category === "");
+    });
     render();
   }
 
   function init() {
-    rebuildSelect(els.category, CATEGORIES, "All Categories", "");
-    rebuildSelect(els.industry, INDUSTRIES, "All Industries", "");
-    populateBundleSelects();
+    buildBundleIndustryIndex();
+    rebuildSelect(els.industry, INDUSTRIES, "All Industries");
+    populateCategoryList();
 
     els.search.addEventListener("input", render);
-    els.category.addEventListener("change", render);
     els.industry.addEventListener("change", render);
-    els.bundleIndustry.addEventListener("change", function () {
-      if (els.bundleIndustry.value) els.bundleCategory.value = "";
-      render();
-    });
-    els.bundleCategory.addEventListener("change", function () {
-      if (els.bundleCategory.value) els.bundleIndustry.value = "";
-      render();
-    });
     els.clear.addEventListener("click", clearFilters);
 
     els.viewListBtn.addEventListener("click", function () {
@@ -441,6 +472,13 @@
     });
     els.viewGridBtn.addEventListener("click", function () {
       setView("grid");
+    });
+
+    els.modeCoursesBtn.addEventListener("click", function () {
+      setMode("courses");
+    });
+    els.modeBundlesBtn.addEventListener("click", function () {
+      setMode("bundles");
     });
 
     els.modalClose.addEventListener("click", closeModal);
@@ -452,7 +490,7 @@
     });
 
     setView(state.view);
-    render();
+    setMode(state.mode);
   }
 
   document.addEventListener("DOMContentLoaded", init);
