@@ -11,7 +11,8 @@
     search: document.getElementById("search-input"),
     category: document.getElementById("category-select"),
     industry: document.getElementById("industry-select"),
-    bundle: document.getElementById("bundle-select"),
+    bundleIndustry: document.getElementById("bundle-industry-select"),
+    bundleCategory: document.getElementById("bundle-category-select"),
     clear: document.getElementById("clear-btn"),
     resultCount: document.getElementById("result-count"),
     bundleCard: document.getElementById("bundle-card"),
@@ -46,7 +47,7 @@
     selectEl.value = currentValue || "";
   }
 
-  function populateBundleSelect() {
+  function populateBundleSelects() {
     var byIndustry = BUNDLES.filter(function (b) {
       return b.type === "By Industry";
     });
@@ -54,14 +55,11 @@
       return b.type === "By Category";
     });
 
-    var opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = "All Bundles";
-    els.bundle.appendChild(opt0);
-
-    function addGroup(label, list) {
-      var group = document.createElement("optgroup");
-      group.label = label;
+    function fill(selectEl, placeholder, list) {
+      var opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = placeholder;
+      selectEl.appendChild(opt0);
       list
         .slice()
         .sort(function (a, b) {
@@ -71,13 +69,12 @@
           var opt = document.createElement("option");
           opt.value = b.id;
           opt.textContent = b.name;
-          group.appendChild(opt);
+          selectEl.appendChild(opt);
         });
-      els.bundle.appendChild(group);
     }
 
-    addGroup("By Industry", byIndustry);
-    addGroup("By Category", byCategory);
+    fill(els.bundleIndustry, "All Industry Bundles", byIndustry);
+    fill(els.bundleCategory, "All Category Bundles", byCategory);
   }
 
   // ---------- helpers ----------
@@ -170,7 +167,7 @@
       q: els.search.value.trim(),
       category: els.category.value,
       industry: els.industry.value,
-      bundleId: els.bundle.value,
+      bundleId: els.bundleIndustry.value || els.bundleCategory.value,
     };
   }
 
@@ -371,6 +368,8 @@
 
     els.industry.disabled = isBundleMode;
     els.category.disabled = isBundleMode;
+    els.bundleIndustry.disabled = !!els.bundleCategory.value;
+    els.bundleCategory.disabled = !!els.bundleIndustry.value;
 
     var rows;
     if (isBundleMode) {
@@ -414,19 +413,27 @@
     els.search.value = "";
     els.category.value = "";
     els.industry.value = "";
-    els.bundle.value = "";
+    els.bundleIndustry.value = "";
+    els.bundleCategory.value = "";
     render();
   }
 
   function init() {
     rebuildSelect(els.category, CATEGORIES, "All Categories", "");
     rebuildSelect(els.industry, INDUSTRIES, "All Industries", "");
-    populateBundleSelect();
+    populateBundleSelects();
 
     els.search.addEventListener("input", render);
     els.category.addEventListener("change", render);
     els.industry.addEventListener("change", render);
-    els.bundle.addEventListener("change", render);
+    els.bundleIndustry.addEventListener("change", function () {
+      if (els.bundleIndustry.value) els.bundleCategory.value = "";
+      render();
+    });
+    els.bundleCategory.addEventListener("change", function () {
+      if (els.bundleCategory.value) els.bundleIndustry.value = "";
+      render();
+    });
     els.clear.addEventListener("click", clearFilters);
 
     els.viewListBtn.addEventListener("click", function () {

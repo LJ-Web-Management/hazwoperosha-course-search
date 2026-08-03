@@ -66,7 +66,16 @@ the extraction script, to avoid drifting duplicate copies.
 Single IIFE, `DOMContentLoaded` → `init()`. No modules, no bundler — this is deliberate, keep
 it that way unless the hosting story changes.
 
-**Two result-set modes**, chosen by whether the Bundle dropdown has a value:
+**Bundle filtering is two separate selects**, `#bundle-industry-select` (By Industry bundles
+only) and `#bundle-category-select` (By Category bundles only) — `els.bundleIndustry` /
+`els.bundleCategory` in `app.js`. They're mutually exclusive: picking one clears and disables
+the other (change handlers in `init()`, plus the disabled-state assignment in `render()`).
+`currentFilters().bundleId` resolves to whichever of the two has a value
+(`els.bundleIndustry.value || els.bundleCategory.value`). There is intentionally no single
+combined "Bundle" dropdown — do not re-merge these into one `<select>` with optgroups without
+checking with the user first; that was the previous design and was explicitly changed.
+
+**Two result-set modes**, chosen by whether either bundle select has a value:
 - *Catalog mode* (no bundle selected): filters `COURSES` by free-text search (name + category
   + family + industries substring match) AND category select AND industry-tag membership.
 - *Bundle mode* (bundle selected): ignores the Category/Industry selects (they're disabled via
@@ -144,8 +153,9 @@ python3 -m http.server 8811
 then open `http://localhost:8811` and check:
 1. Free-text search filters and highlights correctly.
 2. Category and Industry selects filter, and both disable when a Bundle is selected.
-3. Bundle dropdown groups correctly into "By Industry" / "By Category" optgroups, and
-   selecting one shows the summary card + switches results to bundle contents.
+3. The two bundle selects are populated correctly (By Industry / By Category), selecting one
+   disables and clears the other, and either shows the summary card + switches results to
+   bundle contents.
 4. List/Grid toggle both render the same result set; grid card click opens modal with full
    detail; list row click expands inline.
 5. Resize to mobile width (375px) — table should stack into label/value pairs, and any
