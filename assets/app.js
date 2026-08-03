@@ -211,7 +211,10 @@
       if (f.category && c.category !== f.category) return false;
       if (f.industry && c.industryTags.indexOf(f.industry) === -1) return false;
       if (q) {
-        var hay = (c.name + " " + c.category + " " + c.family + " " + (c.industries || "")).toLowerCase();
+        var hay = (
+          c.name + " " + c.category + " " + c.family + " " + (c.industries || "") + " " +
+          (c.regBody || "") + " " + (c.citation || "") + " " + (c.altTags || []).join(" ")
+        ).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
@@ -318,6 +321,15 @@
         ? c.industryTags
             .map(function (t) {
               return '<span class="pill pill-accent" style="margin:2px 4px 2px 0;">' + escapeHtml(t) + "</span>";
+            })
+            .join("")
+        : "-") +
+      "</div></div>" +
+      '<div><div class="label">Tags / Alternate Names</div><div class="value">' +
+      (c.altTags && c.altTags.length
+        ? c.altTags
+            .map(function (t) {
+              return '<span class="pill" style="margin:2px 4px 2px 0;">' + escapeHtml(t) + "</span>";
             })
             .join("")
         : "-") +

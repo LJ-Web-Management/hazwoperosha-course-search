@@ -41,14 +41,24 @@ own footer style), or just restructure the sentence.
 
 Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
 
-- **`COURSES`**: array of ~1034 objects, one per Master Catalog row:
+- **`COURSES`**: array of ~1033 objects, one per Master Catalog row:
   `{ id, category, family, name, type, regBody, citation, industries, duration, msrp,
-  bundleClass, industryTags }`. `industryTags` is an array (split on `;` from the source
-  "Industry Bundle Tags" column) - each entry is the *name* of a "By Industry" bundle this
-  course belongs to (e.g. `"Construction (General & Commercial) Bundle"`). A course can have
-  zero, one, or several tags.
+  bundleClass, industryTags, altTags }`. `industryTags` is an array (split on `;` from the
+  source "Industry Bundle Tags" column) - each entry is the *name* of a "By Industry" bundle
+  this course belongs to (e.g. `"Construction (General & Commercial) Bundle"`). A course can
+  have zero, one, or several tags. `altTags` is a separate array (split on `;` from "Tags /
+  Alternate Names"), holding external standard/code references (e.g. `"OSHA #7215 (Silica in
+  Construction, Maritime & General Industry)"`, `"NFPA 58"`, `"ANSI Z390.1"`) - only ~20% of
+  rows have any; most are `[]`. Don't conflate the two: `industryTags` drives the Industry
+  filter and is always one of the 20 known "By Industry" bundle names; `altTags` is free text
+  from the source data with no controlled vocabulary, included in free-text search
+  (`filterCatalog`'s `hay` string) and shown as plain (non-accent) pills in `detailGridHtml`
+  under "Tags / Alternate Names" so they're visually distinct from the yellow industry pills.
+  Course search (`filterCatalog`) also matches against `regBody` and `citation` (e.g. searching
+  `"1910.120"` or `"NFPA 70E"` finds courses citing that regulation/standard, even though
+  neither field is shown as a filter control - text search is the only way to reach them).
 
-- **`BUNDLES`**: array of 79 objects, one per Bundles Overview row:
+- **`BUNDLES`**: array of 80 objects, one per Bundles Overview row:
   `{ id, type, name, scope, totalCourses, inclFlat, alaCarteAddons, costSeparate, priceTier,
   bundlePrice, savings, alaCarteTerms }`. `type` is `"By Industry"` or `"By Category"`.
   **`id` is `${type}||${name}`, not just `name`** - two bundle names collide across types

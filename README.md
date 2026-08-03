@@ -11,7 +11,9 @@ must be regenerated any time that spreadsheet changes. It is not meant to be han
 1. Make sure the spreadsheet has these three sheets, each with the columns listed:
    - **Master Catalog**: `Category, Course Family, Course Name, Course Type, Regulatory Body,
      Governing Regulation / Citation, Primary Industries, Suggested Duration, Est. MSRP (USD),
-     Bundle Class, Industry Bundle Tags` (semicolon-separated list in the last column)
+     Bundle Class, Industry Bundle Tags, Tags / Alternate Names` (both `Industry Bundle Tags`
+     and `Tags / Alternate Names` are semicolon-separated lists; `Tags / Alternate Names` is
+     optional per row and often blank)
    - **Bundles Overview**: `Bundle Type, Suggested Bundle Name, Scope / Included Categories,
      Total Courses, Included in Flat Bundle Price, À La Carte Add-Ons, Cost to Buy Included
      Courses Separately, Price Tier, Bundle Price, Savings vs. Buying Separately, À La Carte
@@ -35,13 +37,14 @@ must be regenerated any time that spreadsheet changes. It is not meant to be han
        if row[0] is None:
            continue
        (category, course_family, course_name, course_type, reg_body, citation,
-        industries, duration, msrp, bundle_class, industry_tags) = row[:11]
+        industries, duration, msrp, bundle_class, industry_tags, alt_tags) = row[:12]
        tags = [t.strip() for t in (industry_tags or "").split(";") if t.strip()]
+       alt = [t.strip() for t in (alt_tags or "").split(";") if t.strip()]
        courses.append({
            "id": i, "category": category, "family": course_family, "name": course_name,
            "type": course_type, "regBody": reg_body, "citation": citation,
            "industries": industries, "duration": duration, "msrp": msrp,
-           "bundleClass": bundle_class, "industryTags": tags,
+           "bundleClass": bundle_class, "industryTags": tags, "altTags": alt,
        })
 
    ws = wb["Bundles Overview"]
