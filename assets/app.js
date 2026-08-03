@@ -1,7 +1,6 @@
 (function () {
   "use strict";
 
-  var CUSTOM_STORAGE_KEY = "hzw_custom_courses_v1";
   var VIEW_STORAGE_KEY = "hzw_view_mode_v1";
 
   var state = {
@@ -24,42 +23,11 @@
     tableHead: document.getElementById("table-head"),
     viewListBtn: document.getElementById("view-list-btn"),
     viewGridBtn: document.getElementById("view-grid-btn"),
-    addCourseBtn: document.getElementById("add-course-btn"),
     modalOverlay: document.getElementById("modal-overlay"),
     modalTitle: document.getElementById("modal-title"),
     modalBody: document.getElementById("modal-body"),
     modalClose: document.getElementById("modal-close"),
   };
-
-  // ---------- persistence ----------
-
-  function loadCustomCourses() {
-    try {
-      var raw = localStorage.getItem(CUSTOM_STORAGE_KEY);
-      var list = raw ? JSON.parse(raw) : [];
-      list.forEach(function (c) {
-        c.isCustom = true;
-        COURSES.push(c);
-      });
-    } catch (e) {
-      console.error("Failed to load custom courses", e);
-    }
-  }
-
-  function saveCustomCourses() {
-    var custom = COURSES.filter(function (c) {
-      return c.isCustom;
-    });
-    localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(custom));
-  }
-
-  function ensureCategoryOption(category) {
-    if (CATEGORIES.indexOf(category) === -1) {
-      CATEGORIES.push(category);
-      CATEGORIES.sort();
-      rebuildSelect(els.category, CATEGORIES, "All Categories", "");
-    }
-  }
 
   // ---------- select population ----------
 
@@ -254,25 +222,12 @@
     );
   }
 
-  function removeCourse(id) {
-    var idx = COURSES.findIndex(function (c) {
-      return c.id === id;
-    });
-    if (idx !== -1) COURSES.splice(idx, 1);
-    saveCustomCourses();
-    closeModal();
-    render();
-  }
-
   // ---------- list (table) rendering ----------
 
   function buildCatalogRow(c, q) {
     var tr = document.createElement("tr");
     tr.innerHTML =
-      '<td data-label="Course Name" class="course-name-cell">' +
-      highlight(c.name, q) +
-      (c.isCustom ? ' <span class="pill custom-badge">Custom</span>' : "") +
-      "</td>" +
+      '<td data-label="Course Name" class="course-name-cell">' + highlight(c.name, q) + "</td>" +
       '<td data-label="Category"><span class="pill">' + escapeHtml(c.category) + "</span></td>" +
       '<td data-label="Course Type">' + escapeHtml(c.type) + "</td>" +
       '<td data-label="Industries">' + escapeHtml(c.industries || "—") + "</td>" +
@@ -284,26 +239,12 @@
     detailTr.hidden = true;
     var td = document.createElement("td");
     td.colSpan = 6;
-    td.innerHTML =
-      detailGridHtml(c) +
-      (c.isCustom
-        ? '<div style="margin-top:14px;"><button type="button" class="btn-danger" data-delete-id="' + escapeHtml(c.id) + '">Delete Custom Course</button></div>'
-        : "");
+    td.innerHTML = detailGridHtml(c);
     detailTr.appendChild(td);
 
     tr.addEventListener("click", function () {
       detailTr.hidden = !detailTr.hidden;
     });
-
-    var delBtn = td.querySelector("[data-delete-id]");
-    if (delBtn) {
-      delBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        if (confirm('Delete custom course "' + c.name + '"? This cannot be undone.')) {
-          removeCourse(c.id);
-        }
-      });
-    }
 
     return [tr, detailTr];
   }
@@ -348,7 +289,6 @@
       '<div class="card-pills">' +
       '<span class="pill">' + escapeHtml(c.category) + "</span>" +
       '<span class="pill">' + escapeHtml(c.type) + "</span>" +
-      (c.isCustom ? '<span class="pill custom-badge">Custom</span>' : "") +
       "</div>" +
       (c.industries ? '<div class="card-industries">' + escapeHtml(c.industries) + "</div>" : "") +
       '<div class="card-meta-row"><span>' + escapeHtml(c.duration) + '</span><span class="msrp-cell">' + fmtMoney(c.msrp) + "</span></div>";
@@ -401,154 +341,8 @@
       '<span class="pill">' + escapeHtml(c.type) + "</span>" +
       '<span class="pill">' + escapeHtml(c.duration) + "</span>" +
       '<span class="pill msrp-cell">' + fmtMoney(c.msrp) + "</span>" +
-      (c.isCustom ? '<span class="pill custom-badge">Custom</span>' : "") +
       "</div>" +
-      detailGridHtml(c, extraStatus) +
-      (c.isCustom
-        ? '<div class="form-actions"><button type="button" class="btn-danger" id="modal-delete-btn">Delete Custom Course</button></div>'
-        : "");
-    if (c.isCustom) {
-      document.getElementById("modal-delete-btn").addEventListener("click", function () {
-        if (confirm('Delete custom course "' + c.name + '"? This cannot be undone.')) {
-          removeCourse(c.id);
-        }
-      });
-    }
-  }
-
-  function openAddCourseModal() {
-    openModal("Add Course");
-    var courseTypes = Array.from(
-      new Set(
-        COURSES.map(function (c) {
-          return c.type;
-        })
-      )
-    ).sort();
-    var bundleClasses = ["Bundle-Eligible", "Certification-Tier (À La Carte)"];
-
-    var industryChecks = INDUSTRIES.map(function (ind) {
-      return (
-        '<label class="checkbox-item"><input type="checkbox" name="industryTags" value="' +
-        escapeHtml(ind) +
-        '" />' +
-        escapeHtml(ind) +
-        "</label>"
-      );
-    }).join("");
-
-    els.modalBody.innerHTML =
-      '<form id="add-course-form">' +
-      '<div class="form-grid">' +
-      '<div class="field field-full">' +
-      '<label for="f-name">Course Name *</label>' +
-      '<input type="text" id="f-name" required />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-category">Category *</label>' +
-      '<input type="text" id="f-category" list="category-datalist" required />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-type">Course Type</label>' +
-      '<input type="text" id="f-type" list="course-type-datalist" placeholder="e.g. Core Course" />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-duration">Suggested Duration</label>' +
-      '<input type="text" id="f-duration" placeholder="e.g. 2 Hours" />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-msrp">Est. MSRP (USD)</label>' +
-      '<input type="number" id="f-msrp" step="0.01" min="0" placeholder="e.g. 49.99" />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-regbody">Regulatory Body</label>' +
-      '<input type="text" id="f-regbody" placeholder="e.g. OSHA" />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-citation">Governing Regulation / Citation</label>' +
-      '<input type="text" id="f-citation" placeholder="e.g. 29 CFR 1910.120" />' +
-      "</div>" +
-      '<div class="field field-full">' +
-      '<label for="f-industries">Primary Industries</label>' +
-      '<input type="text" id="f-industries" placeholder="e.g. Construction, Manufacturing" />' +
-      "</div>" +
-      '<div class="field">' +
-      '<label for="f-bundleclass">Bundle Class</label>' +
-      '<select id="f-bundleclass"><option value="">— None —</option>' +
-      bundleClasses
-        .map(function (b) {
-          return '<option value="' + escapeHtml(b) + '">' + escapeHtml(b) + "</option>";
-        })
-        .join("") +
-      "</select>" +
-      "</div>" +
-      '<div class="field field-full">' +
-      '<label>Industry Bundle Tags</label>' +
-      '<div class="checkbox-grid">' + industryChecks + "</div>" +
-      '<div class="form-hint">Tagging an industry makes this course appear under that Industry filter.</div>' +
-      "</div>" +
-      "</div>" +
-      '<datalist id="category-datalist">' +
-      CATEGORIES.map(function (cat) {
-        return '<option value="' + escapeHtml(cat) + '">';
-      }).join("") +
-      "</datalist>" +
-      '<datalist id="course-type-datalist">' +
-      courseTypes
-        .map(function (t) {
-          return '<option value="' + escapeHtml(t) + '">';
-        })
-        .join("") +
-      "</datalist>" +
-      '<div class="form-actions">' +
-      '<button type="button" class="btn-secondary" id="add-course-cancel">Cancel</button>' +
-      '<button type="submit" class="btn-primary">Add Course</button>' +
-      "</div>" +
-      "</form>";
-
-    document.getElementById("add-course-cancel").addEventListener("click", closeModal);
-    document.getElementById("add-course-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      submitAddCourseForm();
-    });
-  }
-
-  function submitAddCourseForm() {
-    var name = document.getElementById("f-name").value.trim();
-    var category = document.getElementById("f-category").value.trim();
-    if (!name || !category) return;
-
-    var checkedTags = Array.prototype.slice
-      .call(document.querySelectorAll('input[name="industryTags"]:checked'))
-      .map(function (el) {
-        return el.value;
-      });
-
-    var msrpRaw = document.getElementById("f-msrp").value;
-    var newCourse = {
-      id: "custom-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
-      category: category,
-      family: name,
-      name: name,
-      type: document.getElementById("f-type").value.trim() || "Custom Course",
-      regBody: document.getElementById("f-regbody").value.trim(),
-      citation: document.getElementById("f-citation").value.trim(),
-      industries: document.getElementById("f-industries").value.trim(),
-      duration: document.getElementById("f-duration").value.trim(),
-      msrp: msrpRaw ? parseFloat(msrpRaw) : null,
-      bundleClass: document.getElementById("f-bundleclass").value,
-      industryTags: checkedTags,
-      isCustom: true,
-    };
-
-    COURSES.push(newCourse);
-    ensureCategoryOption(category);
-    saveCustomCourses();
-    closeModal();
-
-    clearFilters(false);
-    els.search.value = name;
-    render();
+      detailGridHtml(c, extraStatus);
   }
 
   // ---------- main render ----------
@@ -616,17 +410,15 @@
     els.resultsGrid.appendChild(gridFrag);
   }
 
-  function clearFilters(shouldRender) {
+  function clearFilters() {
     els.search.value = "";
     els.category.value = "";
     els.industry.value = "";
     els.bundle.value = "";
-    if (shouldRender !== false) render();
+    render();
   }
 
   function init() {
-    loadCustomCourses();
-
     rebuildSelect(els.category, CATEGORIES, "All Categories", "");
     rebuildSelect(els.industry, INDUSTRIES, "All Industries", "");
     populateBundleSelect();
@@ -635,9 +427,7 @@
     els.category.addEventListener("change", render);
     els.industry.addEventListener("change", render);
     els.bundle.addEventListener("change", render);
-    els.clear.addEventListener("click", function () {
-      clearFilters();
-    });
+    els.clear.addEventListener("click", clearFilters);
 
     els.viewListBtn.addEventListener("click", function () {
       setView("list");
@@ -646,7 +436,6 @@
       setView("grid");
     });
 
-    els.addCourseBtn.addEventListener("click", openAddCourseModal);
     els.modalClose.addEventListener("click", closeModal);
     els.modalOverlay.addEventListener("click", function (e) {
       if (e.target === els.modalOverlay) closeModal();

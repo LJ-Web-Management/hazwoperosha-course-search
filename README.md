@@ -1,50 +1,87 @@
 # Course Catalog Search — Internal Tool
 
-A static, no-build search tool for the HAZWOPER OSHA Training course catalog. Built from
-`ICTrainingUS_reviewed.xlsx` (Master Catalog, Bundles Overview, Bundle Contents Detail).
+A static search tool for the HAZWOPER OSHA Training course catalog. See `CLAUDE.md` for full
+technical/architecture notes.
 
-## Run locally
+## Regenerating `assets/data.js`
 
-```bash
-python3 -m http.server 8811
-```
+`assets/data.js` is generated from the source spreadsheet (`ICTrainingUS_reviewed.xlsx`) and
+must be regenerated any time that spreadsheet changes. It is not meant to be hand-edited.
 
-Then open `http://localhost:8811`.
+1. Make sure the spreadsheet has these three sheets, each with the columns listed:
+   - **Master Catalog**: `Category, Course Family, Course Name, Course Type, Regulatory Body,
+     Governing Regulation / Citation, Primary Industries, Suggested Duration, Est. MSRP (USD),
+     Bundle Class, Industry Bundle Tags` (semicolon-separated list in the last column)
+   - **Bundles Overview**: `Bundle Type, Suggested Bundle Name, Scope / Included Categories,
+     Total Courses, Included in Flat Bundle Price, À La Carte Add-Ons, Cost to Buy Included
+     Courses Separately, Price Tier, Bundle Price, Savings vs. Buying Separately, À La Carte
+     Terms for Excluded Courses`
+   - **Bundle Contents Detail**: `Bundle Type, Bundle Name, Course Name, Category, Course Type,
+     Suggested Duration, Est. MSRP (USD), Inclusion Status`
+2. Run this Python script (needs `openpyxl`, no other dependencies) against the spreadsheet:
 
-## Deploy to GitHub Pages
+   ```python
+   import json
+   import openpyxl
 
-1. Push this folder's contents to a GitHub repo (or a `docs/` folder / `gh-pages` branch).
-2. In the repo settings, enable **Pages** and point it at the branch/folder containing
-   `index.html`.
-3. No build step needed — it's plain HTML/CSS/JS.
+   SRC = "/path/to/ICTrainingUS_reviewed.xlsx"
+   OUT = "assets/data.js"
 
-## Updating the course data
+   wb = openpyxl.load_workbook(SRC, data_only=True)
 
-The catalog lives in `assets/data.js`, generated from the source spreadsheet. To refresh it
-after the spreadsheet changes, re-run the extraction script (ask Claude to regenerate
-`assets/data.js` from the latest `.xlsx`, or reuse the extraction logic: reads the "Master
-Catalog", "Bundles Overview", and "Bundle Contents Detail" sheets and writes `COURSES`,
-`BUNDLES`, `BUNDLE_CONTENTS`, `INDUSTRIES`, and `CATEGORIES` as JS constants).
+   ws = wb["Master Catalog"]
+   courses = []
+   for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True)):
+       if row[0] is None:
+           continue
+       (category, course_family, course_name, course_type, reg_body, citation,
+        industries, duration, msrp, bundle_class, industry_tags) = row[:11]
+       tags = [t.strip() for t in (industry_tags or "").split(";") if t.strip()]
+       courses.append({
+           "id": i, "category": category, "family": course_family, "name": course_name,
+           "type": course_type, "regBody": reg_body, "citation": citation,
+           "industries": industries, "duration": duration, "msrp": msrp,
+           "bundleClass": bundle_class, "industryTags": tags,
+       })
 
-## "Add Course" feature — important limitation
+   ws = wb["Bundles Overview"]
+   bundles = []
+   for row in ws.iter_rows(min_row=2, values_only=True):
+       if row[0] is None:
+           continue
+       (btype, bname, scope, total_courses, incl_flat, ala_carte_addons,
+        cost_separate, price_tier, bundle_price, savings, ala_carte_terms) = row[:11]
+       bundles.append({
+           "id": f"{btype}||{bname}", "type": btype, "name": bname, "scope": scope,
+           "totalCourses": total_courses, "inclFlat": incl_flat,
+           "alaCarteAddons": ala_carte_addons, "costSeparate": cost_separate,
+           "priceTier": price_tier, "bundlePrice": bundle_price, "savings": savings,
+           "alaCarteTerms": ala_carte_terms,
+       })
 
-The **+ Add Course** button lets reps add courses that aren't yet in the spreadsheet. These are
-saved to **that browser's `localStorage` only** — this is a static site with no backend/database,
-so custom courses:
+   ws = wb["Bundle Contents Detail"]
+   contents = {}
+   for row in ws.iter_rows(min_row=2, values_only=True):
+       if row[0] is None:
+           continue
+       (btype, bname, course_name, category, course_type, duration, msrp, status) = row[:8]
+       key = f"{btype}||{bname}"
+       contents.setdefault(key, []).append({
+           "name": course_name, "category": category, "type": course_type,
+           "duration": duration, "msrp": msrp, "status": status,
+       })
 
-- Persist across reloads in the same browser
-- Are **not shared** with other users or devices
-- Are marked with a "Custom" badge and can be deleted from their detail view
+   industries = sorted({b["name"] for b in bundles if b["type"] == "By Industry"})
+   categories = sorted({c["category"] for c in courses})
 
-If you need custom entries to be visible to your whole team, add them to the source spreadsheet
-and regenerate `assets/data.js` instead.
+   with open(OUT, "w") as f:
+       f.write("// Auto-generated from ICTrainingUS_reviewed.xlsx — do not hand-edit.\n")
+       f.write("const COURSES = " + json.dumps(courses, ensure_ascii=False) + ";\n")
+       f.write("const BUNDLES = " + json.dumps(bundles, ensure_ascii=False) + ";\n")
+       f.write("const BUNDLE_CONTENTS = " + json.dumps(contents, ensure_ascii=False) + ";\n")
+       f.write("const INDUSTRIES = " + json.dumps(industries, ensure_ascii=False) + ";\n")
+       f.write("const CATEGORIES = " + json.dumps(categories, ensure_ascii=False) + ";\n")
+   ```
 
-## Search behavior
-
-- **Text search** — matches course name, category, course family, and primary industries.
-- **Industry filter** — filters by the 20 "By Industry" bundle tags assigned to each course.
-- **Bundle filter** — grouped by the catalog's two bundle types (*By Industry* / *By Category*).
-  Selecting a bundle switches the results to that bundle's contents, with a summary card
-  (price tier, seat price, savings %).
-- **List / Grid toggle** — list view supports inline row expansion; grid view opens a detail
-  modal on click. Preference is remembered per browser.
+3. Reload `index.html` (locally via `python3 -m http.server`, or on the deployed GitHub Pages
+   URL) and confirm the result count and a few searches look right before committing.

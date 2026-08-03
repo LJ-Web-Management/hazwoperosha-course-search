@@ -241,22 +241,6 @@ button.clear-btn:hover {
   color: var(--accent);
 }
 
-.add-btn {
-  border: 1px solid var(--foreground);
-  background: var(--foreground);
-  color: var(--accent);
-  padding: 8px 14px;
-  border-radius: 7px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.add-btn:hover {
-  opacity: 0.88;
-}
-
 .bundle-card {
   margin-top: 18px;
   border: 1px solid var(--zinc-200);
@@ -474,12 +458,6 @@ table.results-table td {
   margin-top: 8px;
 }
 
-.custom-badge {
-  background: var(--foreground);
-  color: var(--accent);
-  font-weight: 700;
-}
-
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -539,89 +517,6 @@ table.results-table td {
 
 .modal-body {
   padding: 20px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-}
-
-.form-grid .field-full {
-  grid-column: 1 / -1;
-}
-
-.checkbox-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 6px 12px;
-  max-height: 150px;
-  overflow-y: auto;
-  border: 1px solid var(--zinc-200);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-}
-
-.checkbox-item input {
-  width: auto;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.btn-primary {
-  background: var(--foreground);
-  color: var(--accent);
-  border: none;
-  padding: 9px 18px;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.btn-secondary {
-  background: var(--background);
-  color: var(--zinc-700);
-  border: 1px solid var(--zinc-300);
-  padding: 9px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.btn-danger {
-  background: var(--background);
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-}
-
-.btn-danger:hover {
-  background: #fef2f2;
-}
-
-.form-hint {
-  font-size: 11px;
-  color: var(--zinc-500);
-  margin-top: 4px;
 }
 
 footer.site-footer {
