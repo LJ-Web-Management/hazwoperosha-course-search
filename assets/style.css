@@ -127,8 +127,8 @@ main {
 }
 
 .category-item.active {
-  background: var(--foreground);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--foreground);
   font-weight: 600;
 }
 
@@ -178,9 +178,9 @@ main {
 }
 
 .mode-btn.active {
-  background: var(--foreground);
-  color: var(--accent);
-  border-color: var(--foreground);
+  background: var(--accent);
+  color: var(--foreground);
+  border-color: var(--accent);
 }
 
 .search-row {
@@ -317,8 +317,8 @@ button.clear-btn:hover {
 }
 
 .view-btn.active {
-  background: var(--foreground);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .bundle-type-badge {
@@ -329,8 +329,8 @@ button.clear-btn:hover {
   letter-spacing: 0.05em;
   padding: 3px 8px;
   border-radius: 20px;
-  background: var(--foreground);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--foreground);
   margin-bottom: 8px;
 }
 
