@@ -8,9 +8,35 @@
     view: localStorage.getItem(VIEW_STORAGE_KEY) === "grid" ? "grid" : "list",
     mode: localStorage.getItem(MODE_STORAGE_KEY) === "bundles" ? "bundles" : "courses",
     category: "",
+    sort: { courses: "name:asc", bundles: "name:asc" },
   };
 
   var bundleIndustryTags = {}; // bundle.id -> Set of industry names covered by its courses
+
+  var SORT_OPTIONS = {
+    courses: [
+      { value: "name:asc", label: "Name (A-Z)" },
+      { value: "name:desc", label: "Name (Z-A)" },
+      { value: "price:asc", label: "Price (Low to High)" },
+      { value: "price:desc", label: "Price (High to Low)" },
+      { value: "duration:asc", label: "Duration (Shortest First)" },
+      { value: "duration:desc", label: "Duration (Longest First)" },
+    ],
+    bundles: [
+      { value: "name:asc", label: "Name (A-Z)" },
+      { value: "name:desc", label: "Name (Z-A)" },
+      { value: "price:asc", label: "Price (Low to High)" },
+      { value: "price:desc", label: "Price (High to Low)" },
+      { value: "savings:asc", label: "Savings (Low to High)" },
+      { value: "savings:desc", label: "Savings (High to Low)" },
+      { value: "courses:asc", label: "# Courses (Low to High)" },
+      { value: "courses:desc", label: "# Courses (High to Low)" },
+      { value: "tier:asc", label: "Price Tier (Starter to Enterprise)" },
+      { value: "tier:desc", label: "Price Tier (Enterprise to Starter)" },
+    ],
+  };
+
+  var TIER_RANK = { Starter: 0, Standard: 1, Advanced: 2, Comprehensive: 3, Enterprise: 4 };
 
   var els = {
     search: document.getElementById("search-input"),
@@ -26,6 +52,7 @@
     tableHead: document.getElementById("table-head"),
     viewListBtn: document.getElementById("view-list-btn"),
     viewGridBtn: document.getElementById("view-grid-btn"),
+    sort: document.getElementById("sort-select"),
     modeCoursesBtn: document.getElementById("mode-courses-btn"),
     modeBundlesBtn: document.getElementById("mode-bundles-btn"),
     modalOverlay: document.getElementById("modal-overlay"),
@@ -77,6 +104,17 @@
     els.categoryList.appendChild(frag);
   }
 
+  function populateSortSelect() {
+    els.sort.innerHTML = "";
+    SORT_OPTIONS[state.mode].forEach(function (opt) {
+      var el = document.createElement("option");
+      el.value = opt.value;
+      el.textContent = opt.label;
+      els.sort.appendChild(el);
+    });
+    els.sort.value = state.sort[state.mode];
+  }
+
   function findCourseByName(name) {
     return COURSES.filter(function (c) {
       return c.name === name;
@@ -98,13 +136,21 @@
   // ---------- helpers ----------
 
   function fmtMoney(n) {
-    if (n === null || n === undefined || n === "") return "-";
+    if (n === null || n === undefined || n === "" || isNaN(Number(n))) return "-";
     return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function fmtNumber(n) {
-    if (n === null || n === undefined || n === "") return "-";
+    if (n === null || n === undefined || n === "" || isNaN(Number(n))) return "-";
     return Number(n).toLocaleString("en-US");
+  }
+
+  // A few bundles have non-numeric savings ("N/A") or bundlePrice ("Contact
+  // for À La Carte Pricing") in the source data - Number(n) on those is NaN,
+  // which is not null, so a bare `!== null` check lets "NaN%" through.
+  function fmtSavingsPct(savings) {
+    if (typeof savings !== "number" || isNaN(savings)) return null;
+    return Math.round(savings * 1000) / 10;
   }
 
   function escapeHtml(str) {
@@ -185,6 +231,75 @@
     });
   }
 
+  // ---------- sorting ----------
+
+  function parseDurationToMinutes(text) {
+    if (!text) return null;
+    var m = text.match(/(\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    var num = parseFloat(m[1]);
+    var lower = text.toLowerCase();
+    if (lower.indexOf("min") !== -1) return num;
+    if (lower.indexOf("day") !== -1) return num * 24 * 60;
+    return num * 60; // default: hours
+  }
+
+  function tierRank(tier) {
+    return Object.prototype.hasOwnProperty.call(TIER_RANK, tier) ? TIER_RANK[tier] : null;
+  }
+
+  // Nulls always sort last, regardless of direction, so unparseable/unranked
+  // values don't jump to the top just because the direction flipped.
+  function compareNullable(a, b, dir) {
+    var mul = dir === "desc" ? -1 : 1;
+    var aNull = a === null || a === undefined || (typeof a === "number" && isNaN(a));
+    var bNull = b === null || b === undefined || (typeof b === "number" && isNaN(b));
+    if (aNull && bNull) return 0;
+    if (aNull) return 1;
+    if (bNull) return -1;
+    if (a < b) return -1 * mul;
+    if (a > b) return 1 * mul;
+    return 0;
+  }
+
+  function compareName(a, b, dir) {
+    return a.localeCompare(b) * (dir === "desc" ? -1 : 1);
+  }
+
+  // A couple of bundles hold descriptive text ("Contact for À La Carte
+  // Pricing", "N/A") instead of a number in bundlePrice/savings - comparing
+  // a string against a number with < / > coerces unpredictably, so route
+  // both through this before handing them to compareNullable.
+  function numOrNull(v) {
+    return typeof v === "number" && !isNaN(v) ? v : null;
+  }
+
+  function courseComparator(key, dir) {
+    return function (a, b) {
+      if (key === "price") return compareNullable(numOrNull(a.msrp), numOrNull(b.msrp), dir);
+      if (key === "duration") return compareNullable(parseDurationToMinutes(a.duration), parseDurationToMinutes(b.duration), dir);
+      return compareName(a.name, b.name, dir);
+    };
+  }
+
+  function bundleComparator(key, dir) {
+    return function (a, b) {
+      if (key === "price") return compareNullable(numOrNull(a.bundlePrice), numOrNull(b.bundlePrice), dir);
+      if (key === "savings") return compareNullable(numOrNull(a.savings), numOrNull(b.savings), dir);
+      if (key === "courses") return compareNullable(numOrNull(a.totalCourses), numOrNull(b.totalCourses), dir);
+      if (key === "tier") return compareNullable(tierRank(a.priceTier), tierRank(b.priceTier), dir);
+      return compareName(a.name, b.name, dir);
+    };
+  }
+
+  function sortRows(rows, mode) {
+    var parts = state.sort[mode].split(":");
+    var key = parts[0];
+    var dir = parts[1];
+    var comparator = mode === "bundles" ? bundleComparator(key, dir) : courseComparator(key, dir);
+    return rows.slice().sort(comparator);
+  }
+
   // ---------- course detail content (shared by list-expand and modal) ----------
 
   function detailGridHtml(c, extraStatus) {
@@ -214,7 +329,7 @@
   // ---------- bundle detail content (shared by list-expand and modal) ----------
 
   function bundleStatsHtml(bundle) {
-    var savingsPct = bundle.savings ? Math.round(bundle.savings * 1000) / 10 : null;
+    var savingsPct = fmtSavingsPct(bundle.savings);
     return (
       '<span class="bundle-type-badge">' + escapeHtml(bundle.type) + "</span>" +
       '<div class="bundle-scope">' + escapeHtml(bundle.scope || "") + "</div>" +
@@ -307,7 +422,7 @@
   // ---------- list (table) rendering: bundles ----------
 
   function buildBundleListRow(b, q) {
-    var savingsPct = b.savings ? Math.round(b.savings * 1000) / 10 : null;
+    var savingsPct = fmtSavingsPct(b.savings);
     var tr = document.createElement("tr");
     tr.innerHTML =
       '<td data-label="Bundle Name" class="course-name-cell">' + highlight(b.name, q) + "</td>" +
@@ -334,7 +449,7 @@
   }
 
   function buildBundleGridCard(b, q) {
-    var savingsPct = b.savings ? Math.round(b.savings * 1000) / 10 : null;
+    var savingsPct = fmtSavingsPct(b.savings);
     var card = document.createElement("div");
     card.className = "course-card";
     card.innerHTML =
@@ -404,6 +519,7 @@
     els.modeCoursesBtn.setAttribute("aria-pressed", mode === "courses");
     els.modeBundlesBtn.setAttribute("aria-pressed", mode === "bundles");
     els.search.placeholder = mode === "bundles" ? "Search by bundle name…" : "Search by course name…";
+    populateSortSelect();
     render();
   }
 
@@ -425,6 +541,7 @@
       cardBuilder = buildCatalogCard;
       noun = "course";
     }
+    rows = sortRows(rows, state.mode);
 
     els.resultCount.innerHTML = "<strong>" + fmtNumber(rows.length) + "</strong> " + noun + (rows.length === 1 ? "" : "s") + " found";
 
@@ -460,6 +577,8 @@
     Array.prototype.forEach.call(els.categoryList.querySelectorAll(".category-item"), function (el) {
       el.classList.toggle("active", el.dataset.category === "");
     });
+    state.sort[state.mode] = "name:asc";
+    els.sort.value = "name:asc";
     render();
   }
 
@@ -470,6 +589,10 @@
 
     els.search.addEventListener("input", render);
     els.industry.addEventListener("change", render);
+    els.sort.addEventListener("change", function () {
+      state.sort[state.mode] = els.sort.value;
+      render();
+    });
     els.clear.addEventListener("click", clearFilters);
 
     els.viewListBtn.addEventListener("click", function () {

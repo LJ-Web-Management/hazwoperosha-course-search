@@ -133,6 +133,44 @@ apply within whichever search mode is active:
 query in `<mark>`. It's a single-match highlight, not global - fine for course/bundle names,
 would need updating if free text ever gets longer/multi-match requirements.
 
+**Sorting** - `#sort-select`, applied after filtering in `render()` via `sortRows(rows, state.mode)`.
+Courses and Bundles have separate, mode-specific option lists (`SORT_OPTIONS.courses` /
+`SORT_OPTIONS.bundles`), each remembered independently in `state.sort.courses` /
+`state.sort.bundles` (not persisted to `localStorage` - resets on page reload, unlike view/mode).
+Switching mode calls `populateSortSelect()` to rebuild the `<select>` and restore that mode's
+last choice. "Clear filters" resets sort back to `name:asc` for the current mode.
+- Each option's value is `"<key>:<dir>"` (e.g. `"price:desc"`), split in `sortRows()`.
+- `courseComparator(key, dir)` handles `name` / `price` (msrp) / `duration`.
+  `bundleComparator(key, dir)` handles `name` / `price` (bundlePrice) / `savings` / `courses`
+  (totalCourses) / `tier` (priceTier).
+- `compareNullable(a, b, dir)` puts `null` values **last regardless of direction** - so a course
+  with no MSRP doesn't jump to the top when you flip to "High to Low". Anything that can be
+  genuinely missing or non-numeric must be normalized to `null` before reaching it, not left as
+  `undefined`/`NaN`/a string.
+- **`bundlePrice` and `savings` are sometimes descriptive text, not a number** - two bundles
+  ("Crane & Heavy Equipment Operator Certification Bundle", "Train-the-Trainer Certification
+  Bundle") have `bundlePrice: "Contact for À La Carte Pricing"` and `savings: "N/A"` straight
+  from the spreadsheet. `numOrNull(v)` guards both comparator paths (`typeof v === "number" &&
+  !isNaN(v)`, else `null`) - comparing a string to a number with `<`/`>` coerces unpredictably
+  in JS, so never compare those two fields raw. Same root cause required fixing `fmtMoney` /
+  `fmtNumber` (add an `isNaN(Number(n))` check) and replacing three copies of an inline
+  `savings ? Math.round(...) : null` with the shared `fmtSavingsPct()`, which had the identical
+  bug: `NaN !== null` is `true`, so the old code let `"NaN%"` through to the page instead of
+  falling back to `"-"`. If you add another numeric field, check the live data for stray text
+  before assuming `Number(x)` is safe.
+- `tierRank()` maps `priceTier` to a fixed ladder (`Starter` 0 → `Standard` 1 → `Advanced` 2 →
+  `Comprehensive` 3 → `Enterprise` 4); anything not in that map (currently `"Certification
+  Bundle"`, `"N/A - À La Carte Only"`) returns `null` and sorts last via the same
+  `compareNullable` nulls-last rule, in both directions - deliberate, since those aren't rungs
+  on the tier ladder. If a new price tier value shows up in a future data refresh, decide where
+  it belongs in `TIER_RANK` rather than leaving it to fall through to "last".
+- `parseDurationToMinutes()` normalizes course duration text to minutes for comparison
+  (`"1 Hour"` → 60, `"10 Min"` → 10, `"1 Day"` → 1440). It regex-matches the first number in the
+  string and infers the unit from "min"/"day" substrings, defaulting to hours. Ranges like
+  `"2-3 Days"` use the first number (lower bound). Purely descriptive durations with no digit
+  (`"Theory-Based (no min. hours)"`, `"Varies (Theory + Behind-Wheel)"`) return `null` and sort
+  last in both directions, same as above.
+
 **No client-side data mutation.** Earlier iterations of this tool had an "Add Course" feature
 persisting extra rows to `localStorage`. That was deliberately removed - do not re-add
 client-only data entry without discussing it with the user first; it silently diverges from
@@ -205,7 +243,12 @@ then open `http://localhost:8811` and check:
    course list; clicking a course in that list opens *that course's* own detail popup, not the
    bundle's.
 5. List/Grid toggle both render the same result set for whichever mode is active.
-6. Resize to mobile width (375px) and to ~800px (sidebar breakpoint at 900px) - the table should
+6. Sort: each option in `#sort-select` produces the expected order in both modes; switching
+   Courses ↔ Bundles swaps the option list and restores that mode's last choice; "Clear filters"
+   resets it to "Name (A-Z)"; items with missing/non-numeric values for the active sort key
+   (no MSRP, `savings: "N/A"`, non-numeric `bundlePrice`, non-numeric duration text) sort to the
+   end in both directions rather than jumping to the top on "desc".
+7. Resize to mobile width (375px) and to ~800px (sidebar breakpoint at 900px) - the table should
    stack into label/value pairs, the sidebar should move above the results, and any
    previously-toggled-open detail rows should stay hidden after a fresh load (this is the CSS
    trap below; regressions here are easy to introduce and easy to miss visually at desktop

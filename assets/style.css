@@ -193,6 +193,10 @@ main {
   flex: 0 0 260px;
 }
 
+.sort-field {
+  width: 220px;
+}
+
 .search-input-wrap {
   position: relative;
   flex: 1;
@@ -665,6 +669,12 @@ footer.site-footer {
   }
   .industry-field {
     flex-basis: auto;
+  }
+  .sort-field {
+    width: 100%;
+  }
+  .toolbar-actions {
+    width: 100%;
   }
   table.results-table thead {
     display: none;
