@@ -39,6 +39,7 @@
   var els = {
     search: document.getElementById("search-input"),
     industry: document.getElementById("industry-select"),
+    tag: document.getElementById("tag-select"),
     categoryList: document.getElementById("category-list"),
     clear: document.getElementById("clear-btn"),
     resultCount: document.getElementById("result-count"),
@@ -188,6 +189,7 @@
       q: els.search.value.trim(),
       category: state.category,
       industry: els.industry.value,
+      tag: els.tag.value,
     };
   }
 
@@ -196,6 +198,7 @@
     return COURSES.filter(function (c) {
       if (f.category && c.category !== f.category) return false;
       if (f.industry && c.industryTags.indexOf(f.industry) === -1) return false;
+      if (f.tag && (c.altTags || []).indexOf(f.tag) === -1) return false;
       if (q) {
         var hay = (
           c.name + " " + c.category + " " + c.family + " " + (c.industries || "") + " " +
@@ -373,10 +376,23 @@
 
   // ---------- list (table) rendering: courses ----------
 
+  function altTagPillsHtml(tags) {
+    if (!tags || !tags.length) return "";
+    return (
+      '<div class="row-tags">' +
+      tags
+        .map(function (t) {
+          return '<span class="pill">' + escapeHtml(t) + "</span>";
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
   function buildCatalogRow(c, q) {
     var tr = document.createElement("tr");
     tr.innerHTML =
-      '<td data-label="Course Name" class="course-name-cell">' + highlight(c.name, q) + "</td>" +
+      '<td data-label="Course Name" class="course-name-cell">' + highlight(c.name, q) + altTagPillsHtml(c.altTags) + "</td>" +
       '<td data-label="Category"><span class="pill">' + escapeHtml(c.category) + "</span></td>" +
       '<td data-label="Course Type">' + escapeHtml(c.type) + "</td>" +
       '<td data-label="Industries">' + escapeHtml(c.industries || "-") + "</td>" +
@@ -409,6 +425,7 @@
       '<span class="pill">' + escapeHtml(c.category) + "</span>" +
       '<span class="pill">' + escapeHtml(c.type) + "</span>" +
       "</div>" +
+      altTagPillsHtml(c.altTags) +
       (c.industries ? '<div class="card-industries">' + escapeHtml(c.industries) + "</div>" : "") +
       '<div class="card-meta-row"><span>' + escapeHtml(c.duration) + '</span><span class="msrp-cell">' + fmtMoney(c.msrp) + "</span></div>";
     card.addEventListener("click", function () {
@@ -517,6 +534,7 @@
     els.modeCoursesBtn.setAttribute("aria-pressed", mode === "courses");
     els.modeBundlesBtn.setAttribute("aria-pressed", mode === "bundles");
     els.search.placeholder = mode === "bundles" ? "Search by bundle name…" : "Search by course name…";
+    els.tag.disabled = mode === "bundles"; // altTags only exist on courses, not bundles
     populateSortSelect();
     render();
   }
@@ -571,6 +589,7 @@
   function clearFilters() {
     els.search.value = "";
     els.industry.value = "";
+    els.tag.value = "";
     state.category = "";
     Array.prototype.forEach.call(els.categoryList.querySelectorAll(".category-item"), function (el) {
       el.classList.toggle("active", el.dataset.category === "");
@@ -582,10 +601,13 @@
 
   function init() {
     rebuildSelect(els.industry, INDUSTRIES, "All Industries");
+    var allTags = Array.from(new Set(COURSES.reduce(function (acc, c) { return acc.concat(c.altTags || []); }, []))).sort();
+    rebuildSelect(els.tag, allTags, "All Tags");
     populateCategoryList();
 
     els.search.addEventListener("input", render);
     els.industry.addEventListener("change", render);
+    els.tag.addEventListener("change", render);
     els.sort.addEventListener("change", function () {
       state.sort[state.mode] = els.sort.value;
       render();

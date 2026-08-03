@@ -185,12 +185,14 @@ main {
 
 .search-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.industry-field {
-  flex: 0 0 260px;
+.industry-field,
+.tag-field {
+  flex: 1 1 200px;
 }
 
 .sort-field {
@@ -199,7 +201,7 @@ main {
 
 .search-input-wrap {
   position: relative;
-  flex: 1;
+  flex: 1 1 240px;
 }
 
 .search-input-wrap svg {
@@ -404,6 +406,18 @@ table.results-table td {
 .course-name-cell {
   font-weight: 600;
   max-width: 320px;
+}
+
+.row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.row-tags .pill {
+  font-size: 10px;
 }
 
 .pill {
@@ -667,7 +681,9 @@ footer.site-footer {
   .search-row {
     flex-direction: column;
   }
-  .industry-field {
+  .search-input-wrap,
+  .industry-field,
+  .tag-field {
     flex-basis: auto;
   }
   .sort-field {
