@@ -79,6 +79,15 @@ Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
 Regenerating this file is documented in `README.md` - that's the only doc that should contain
 the extraction script, to avoid drifting duplicate copies.
 
+**Manual price overrides live only in `assets/data.js`, not the spreadsheet.** `OSHA 10 Bundle`
+(`bundlePrice: 49.99`) and `OSHA 30 Bundle` (`bundlePrice: 149.99`) were hand-edited directly in
+this file at the user's request, with `savings` recalculated to match
+(`(costSeparate - bundlePrice) / costSeparate`) so the displayed percentage stays consistent
+with the new price. **The next full regeneration from a spreadsheet will silently overwrite
+both back to the spreadsheet's values** unless the spreadsheet itself is updated first or these
+two overrides are reapplied after regenerating. If you regenerate `data.js`, check whether these
+two bundles still need the override.
+
 ## App behavior (`assets/app.js`)
 
 Single IIFE, `DOMContentLoaded` → `init()`. No modules, no bundler - this is deliberate, keep
@@ -102,8 +111,10 @@ apply to whichever mode is active:**
   match against `bundle.scope` (the Bundles Overview "Scope / Included Categories" field, which
   is a comma-separated list of category names - substring match is deliberate so it works
   whether scope holds one category or several).
-- **Industry** (`#industry-select`) - the only filter dropdown next to the search bar. In
-  Courses mode it checks `course.industryTags` membership. In Bundles mode it's a **strict
+- **Industry** (`#industry-select`) - a `<select>` in the sidebar, directly below the Category
+  list (`.sidebar-title-spaced` marks the divider between the two sections; both live inside
+  the same `.sidebar-panel-body`, not the search-row). In Courses mode it checks
+  `course.industryTags` membership. In Bundles mode it's a **strict
   match on the bundle itself**: `b.type === "By Industry" && b.name === f.industry` - only that
   one industry's own bundle shows up, nothing else. By Category bundles never match an Industry
   filter at all, by design.
@@ -252,15 +263,16 @@ the same two-class-selector override rather than assuming declaration order will
 
 **Third trap: a pixel `flex-basis` means something different depending on `flex-direction`,
 and the `@media (max-width: 640px)` block flips `.search-row` from `row` to `column`.**
-`.search-input-wrap`, `.industry-field`, and `.tag-field` all use `flex: 1 1 <px>` so they size
-sensibly *side by side* on desktop. But `flex-basis` sizes the **main axis** - width in `row`
-mode, height in `column` mode. Below 640px, `.search-row` becomes `flex-direction: column`, so
-an unguarded `flex-basis: 240px` on `.search-input-wrap` turned into a 240px-tall search box
-(confirmed via `getBoundingClientRect()` - the wrapper's flex-basis was literally being read as
-its height). Fixed by resetting `flex-basis: auto` for all three fields inside that same media
-query. If you add a fourth flex item to `.search-row` with a pixel basis, add it to that
-same mobile override or it will silently blow up at narrow widths - this is easy to miss
-because it looks fine at any viewport width above 640px.
+`.search-input-wrap` and `.tag-field` (originally also `.industry-field`, before Industry moved
+to the sidebar - see below) use `flex: 1 1 <px>` so they size sensibly *side by side* on
+desktop. But `flex-basis` sizes the **main axis** - width in `row` mode, height in `column`
+mode. Below 640px, `.search-row` becomes `flex-direction: column`, so an unguarded
+`flex-basis: 240px` on `.search-input-wrap` turned into a 240px-tall search box (confirmed via
+`getBoundingClientRect()` - the wrapper's flex-basis was literally being read as its height).
+Fixed by resetting `flex-basis: auto` for both fields inside that same media query. If you add
+another flex item to `.search-row` with a pixel basis, add it to that same mobile override or
+it will silently blow up at narrow widths - this is easy to miss because it looks fine at any
+viewport width above 640px.
 
 ## Testing changes
 

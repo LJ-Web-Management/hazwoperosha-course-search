@@ -102,6 +102,16 @@ main {
   margin-bottom: 10px;
 }
 
+.sidebar-title-spaced {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--zinc-100);
+}
+
+.sidebar-select {
+  width: 100%;
+}
+
 .category-list {
   display: flex;
   flex-direction: column;
@@ -190,7 +200,6 @@ main {
   margin-bottom: 14px;
 }
 
-.industry-field,
 .tag-field {
   flex: 1 1 200px;
 }
@@ -682,7 +691,6 @@ footer.site-footer {
     flex-direction: column;
   }
   .search-input-wrap,
-  .industry-field,
   .tag-field {
     flex-basis: auto;
   }
