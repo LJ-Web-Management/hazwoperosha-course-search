@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Course Catalog Search — Hazwoper Osha Training</title>
+  <link rel="icon" href="assets/hazwoper-logo.png" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="accent-bar"></div>
+  <header class="site-header">
+    <div class="brand">
+      <img src="assets/hazwoper-logo.png" alt="Hazwoper Osha Training LLC" />
+      <div>
+        <div class="brand-title">Course Catalog Search</div>
+        <div class="brand-sub">Internal Customer Service Tool</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-accent"></div>
+      <div class="search-panel-body">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="search-input" placeholder="Search by course name…" autocomplete="off" />
+          </div>
+        </div>
+        <div class="filters-grid">
+          <div class="field">
+            <label for="category-select">Category</label>
+            <select id="category-select"></select>
+          </div>
+          <div class="field">
+            <label for="industry-select">Industry</label>
+            <select id="industry-select"></select>
+          </div>
+          <div class="field">
+            <label for="bundle-select">Bundle (By Industry / By Category)</label>
+            <select id="bundle-select"></select>
+          </div>
+        </div>
+        <div id="bundle-card" class="bundle-card" hidden></div>
+      </div>
+      <div class="toolbar">
+        <span class="result-count" id="result-count"></span>
+        <div class="toolbar-actions">
+          <div class="view-toggle" role="group" aria-label="View mode">
+            <button type="button" id="view-list-btn" class="view-btn" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              List
+            </button>
+            <button type="button" id="view-grid-btn" class="view-btn" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+              Grid
+            </button>
+          </div>
+          <button class="add-btn" id="add-course-btn" type="button">+ Add Course</button>
+          <button class="clear-btn" id="clear-btn" type="button">Clear filters</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="results-wrap" id="results-wrap">
+      <table class="results-table">
+        <thead id="table-head"></thead>
+        <tbody id="results-body"></tbody>
+      </table>
+      <div class="results-grid" id="results-grid" hidden></div>
+    </div>
+
+    <div class="empty-state" id="empty-state" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <div>No courses match your search. Try adjusting the filters.</div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button class="modal-close" id="modal-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>© Hazwoper Osha Training LLC, 2026</span>
+      <span>Internal Use Only — Course Catalog Search</span>
+    </div>
+    <div class="accent-bar"></div>
+  </footer>
+
+  <script src="assets/data.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
