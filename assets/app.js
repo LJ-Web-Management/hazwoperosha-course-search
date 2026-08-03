@@ -11,8 +11,6 @@
     sort: { courses: "name:asc", bundles: "name:asc" },
   };
 
-  var bundleIndustryTags = {}; // bundle.id -> Set of industry names covered by its courses
-
   var SORT_OPTIONS = {
     courses: [
       { value: "name:asc", label: "Name (A-Z)" },
@@ -121,18 +119,6 @@
     })[0];
   }
 
-  function buildBundleIndustryIndex() {
-    BUNDLES.forEach(function (b) {
-      var set = new Set();
-      if (b.type === "By Industry") set.add(b.name);
-      (BUNDLE_CONTENTS[b.id] || []).forEach(function (c) {
-        var full = findCourseByName(c.name);
-        if (full) full.industryTags.forEach(function (t) { set.add(t); });
-      });
-      bundleIndustryTags[b.id] = set;
-    });
-  }
-
   // ---------- helpers ----------
 
   function fmtMoney(n) {
@@ -225,7 +211,7 @@
     var q = f.q.toLowerCase();
     return BUNDLES.filter(function (b) {
       if (f.category && (b.scope || "").toLowerCase().indexOf(f.category.toLowerCase()) === -1) return false;
-      if (f.industry && !(bundleIndustryTags[b.id] && bundleIndustryTags[b.id].has(f.industry))) return false;
+      if (f.industry && !(b.type === "By Industry" && b.name === f.industry)) return false;
       if (q) {
         var hay = (b.name + " " + (b.scope || "") + " " + b.type).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
@@ -595,7 +581,6 @@
   }
 
   function init() {
-    buildBundleIndustryIndex();
     rebuildSelect(els.industry, INDUSTRIES, "All Industries");
     populateCategoryList();
 

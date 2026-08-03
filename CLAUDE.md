@@ -102,12 +102,18 @@ Industry filters, which apply to both modes.
   is a comma-separated list of category names - substring match is deliberate so it works
   whether scope holds one category or several).
 - **Industry** (`#industry-select`) - the only filter dropdown next to the search bar. In
-  Courses mode it checks `course.industryTags` membership (unchanged from before). In Bundles
-  mode it checks membership in `bundleIndustryTags[bundle.id]`, a `Set` built once in
-  `buildBundleIndustryIndex()` at init: the union of every contained course's `industryTags`,
-  plus the bundle's own name if `bundle.type === "By Industry"` (so a By Industry bundle always
-  matches its own name in the Industry filter even in the edge case where none of its courses
-  happen to carry that tag). This index is derived client-side, not stored in `data.js`.
+  Courses mode it checks `course.industryTags` membership. In Bundles mode it's a **strict
+  match on the bundle itself**: `b.type === "By Industry" && b.name === f.industry` - only that
+  one industry's own bundle shows up, nothing else. By Category bundles never match an Industry
+  filter at all, by design.
+
+  This used to be looser: a bundle matched if *any* course inside it carried that industry tag
+  (union across all contained courses, via a `bundleIndustryTags` index built at init). That
+  surfaced confusing results - e.g. "Agriculture Bundle" showed up under the "Construction
+  (General & Commercial)" industry filter because 6 of its 30 courses (shared equipment/safety
+  content like forklifts, skid steers, heat-illness prevention) happen to carry both industry
+  tags in the source data. The user explicitly chose strict-only-its-own-bundle over that
+  looser behavior - don't reintroduce the union approach without checking first.
 
 There is intentionally no Category or Industry disabling logic between modes anymore - both
 filters are always live, in both modes.
@@ -244,8 +250,9 @@ python3 -m http.server 8811
 
 then open `http://localhost:8811` and check:
 1. Free-text search filters and highlights correctly in both Courses and Bundles mode.
-2. Category sidebar and Industry select both filter correctly in Courses mode, and both still
-   filter (via `bundle.scope` substring / `bundleIndustryTags`) in Bundles mode.
+2. Category sidebar and Industry select both filter correctly in Courses mode. In Bundles mode,
+   Category still filters via `bundle.scope` substring, and Industry does a strict match
+   (selecting an industry shows only that industry's own By Industry bundle, nothing else).
 3. Switching Courses ↔ Bundles updates the search placeholder, the table header, and the result
    count noun ("courses found" vs "bundles found"), and preserves the current Category/Industry
    selection.
