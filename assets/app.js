@@ -7,7 +7,6 @@
   var state = {
     view: localStorage.getItem(VIEW_STORAGE_KEY) === "grid" ? "grid" : "list",
     mode: localStorage.getItem(MODE_STORAGE_KEY) === "bundles" ? "bundles" : "courses",
-    category: "",
     sort: { courses: "name:asc", bundles: "name:asc" },
   };
 
@@ -39,8 +38,9 @@
   var els = {
     search: document.getElementById("search-input"),
     industry: document.getElementById("industry-select"),
-    tag: document.getElementById("tag-select"),
-    categoryList: document.getElementById("category-list"),
+    category: document.getElementById("category-select"),
+    tag: document.getElementById("tag-search-input"),
+    tagField: document.getElementById("tag-field"),
     clear: document.getElementById("clear-btn"),
     resultCount: document.getElementById("result-count"),
     resultsBody: document.getElementById("results-body"),
@@ -74,33 +74,6 @@
       opt.textContent = v;
       selectEl.appendChild(opt);
     });
-  }
-
-  function populateCategoryList() {
-    var frag = document.createDocumentFragment();
-
-    function addItem(label, value) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "category-item";
-      btn.textContent = label;
-      btn.dataset.category = value;
-      if (value === state.category) btn.classList.add("active");
-      btn.addEventListener("click", function () {
-        state.category = value;
-        Array.prototype.forEach.call(els.categoryList.querySelectorAll(".category-item"), function (el) {
-          el.classList.toggle("active", el.dataset.category === value);
-        });
-        render();
-      });
-      frag.appendChild(btn);
-    }
-
-    addItem("All Categories", "");
-    CATEGORIES.forEach(function (cat) {
-      addItem(cat, cat);
-    });
-    els.categoryList.appendChild(frag);
   }
 
   function populateSortSelect() {
@@ -187,18 +160,19 @@
   function currentFilters() {
     return {
       q: els.search.value.trim(),
-      category: state.category,
+      category: els.category.value,
       industry: els.industry.value,
-      tag: els.tag.value,
+      tag: els.tag.value.trim(),
     };
   }
 
   function filterCatalog(f) {
     var q = f.q.toLowerCase();
+    var tagQ = f.tag.toLowerCase();
     return COURSES.filter(function (c) {
       if (f.category && c.category !== f.category) return false;
       if (f.industry && c.industryTags.indexOf(f.industry) === -1) return false;
-      if (f.tag && (c.altTags || []).indexOf(f.tag) === -1) return false;
+      if (tagQ && !(c.altTags || []).some(function (t) { return t.toLowerCase().indexOf(tagQ) !== -1; })) return false;
       if (q) {
         var hay = (
           c.name + " " + c.category + " " + c.family + " " + (c.industries || "") + " " +
@@ -534,7 +508,7 @@
     els.modeCoursesBtn.setAttribute("aria-pressed", mode === "courses");
     els.modeBundlesBtn.setAttribute("aria-pressed", mode === "bundles");
     els.search.placeholder = mode === "bundles" ? "Search by bundle name…" : "Search by course name…";
-    els.tag.disabled = mode === "bundles"; // altTags only exist on courses, not bundles
+    els.tagField.hidden = mode === "bundles"; // altTags only exist on courses, not bundles
     populateSortSelect();
     render();
   }
@@ -590,10 +564,7 @@
     els.search.value = "";
     els.industry.value = "";
     els.tag.value = "";
-    state.category = "";
-    Array.prototype.forEach.call(els.categoryList.querySelectorAll(".category-item"), function (el) {
-      el.classList.toggle("active", el.dataset.category === "");
-    });
+    els.category.value = "";
     state.sort[state.mode] = "name:asc";
     els.sort.value = "name:asc";
     render();
@@ -601,13 +572,12 @@
 
   function init() {
     rebuildSelect(els.industry, INDUSTRIES, "All Industries");
-    var allTags = Array.from(new Set(COURSES.reduce(function (acc, c) { return acc.concat(c.altTags || []); }, []))).sort();
-    rebuildSelect(els.tag, allTags, "All Tags");
-    populateCategoryList();
+    rebuildSelect(els.category, CATEGORIES, "All Categories");
 
     els.search.addEventListener("input", render);
     els.industry.addEventListener("change", render);
-    els.tag.addEventListener("change", render);
+    els.category.addEventListener("change", render);
+    els.tag.addEventListener("input", render);
     els.sort.addEventListener("change", function () {
       state.sort[state.mode] = els.sort.value;
       render();

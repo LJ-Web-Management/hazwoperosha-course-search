@@ -23,7 +23,7 @@
           <div class="panel-accent"></div>
           <div class="sidebar-panel-body">
             <div class="sidebar-title">Category</div>
-            <nav class="category-list" id="category-list" aria-label="Filter by category"></nav>
+            <select id="category-select" class="sidebar-select" aria-label="Filter by category"></select>
             <div class="sidebar-title sidebar-title-spaced">Industry</div>
             <select id="industry-select" class="sidebar-select"></select>
           </div>
@@ -46,8 +46,12 @@
                 </svg>
                 <input type="search" id="search-input" placeholder="Search by course name…" autocomplete="off" />
               </div>
-              <div class="field tag-field">
-                <select id="tag-select" aria-label="Filter by tag"></select>
+              <div class="search-input-wrap" id="tag-field">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="search" id="tag-search-input" placeholder="Search by tag…" autocomplete="off" />
               </div>
             </div>
           </div>
