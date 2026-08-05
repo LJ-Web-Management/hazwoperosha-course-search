@@ -101,10 +101,16 @@ with the user first; that was the previous design and was explicitly replaced. S
 also swaps the search placeholder text and re-renders; it does **not** reset the Category or
 Industry filters, which apply to both modes.
 
-**Filters are four and apply to whichever mode is active. Category and Industry are always
-visible in both modes; Tag is hidden entirely (not disabled) outside Courses mode:**
-- **Search box** (`#search-input`) - free text. Courses mode matches name + category + family +
-  industries + regBody + citation + altTags; Bundles mode matches name + scope + type.
+**Filters are three and apply to whichever mode is active. All three are always visible in both
+modes - there is no per-mode hide/disable logic left:**
+- **Search box** (`#search-input`) - free text, the *only* search input; there used to be a
+  second dedicated `#tag-search-input` bar next to it for tag-only search, but the user asked
+  to merge them - since `filterCatalog`'s `hay` string already included `altTags`, that second
+  box was pure duplication, so it was deleted along with its wrapper div (`#tag-field`), the
+  `f.tag` filter key, and the `tagQ` matching logic. One box now searches everything: Courses
+  mode matches name + category + family + industries + regBody + citation + altTags; Bundles
+  mode matches name + scope + type. Don't reintroduce a separate tag input without checking with
+  the user first.
 - **Category** (`#category-select`) - a `<select>` in the sidebar (top of `.sidebar-panel-body`).
   Used to be a custom list of `.category-item` buttons tracked in `state.category`; the user
   asked for it to match the Industry dropdown's look and behavior, so it's now a plain `<select>`
@@ -127,17 +133,12 @@ visible in both modes; Tag is hidden entirely (not disabled) outside Courses mod
   content like forklifts, skid steers, heat-illness prevention) happen to carry both industry
   tags in the source data. The user explicitly chose strict-only-its-own-bundle over that
   looser behavior - don't reintroduce the union approach without checking first.
-- **Tag** (`#tag-search-input`) - a second free-text search bar, sitting directly to the right of
-  the main search box inside `.search-row` (both wrapped in the shared `.search-input-wrap`
-  class, so they render as two matching search bars side by side; this used to be a `<select>`
-  of exact tag values, but the user asked for a text search instead). Matches via case-insensitive
-  substring against each entry in `course.altTags` (see the `COURSES` entry above) - not an exact
-  option match. **Hidden entirely (not just disabled) in Bundles mode** via
-  `els.tagField.hidden = mode === "bundles"` in `setMode()`, where `#tag-field` is the wrapper div
-  around the input, since bundles have no `altTags` field at all - deliberately not reusing the
-  union-across-contained-courses pattern here either, for the same reason it was removed from the
-  Industry filter above. Its stale value from Courses mode is left in place while hidden (not
-  cleared) and simply has no effect on `filterBundles`, which never reads `f.tag`.
+
+**Category and Industry are mutually exclusive**, enforced in `init()`'s change listeners:
+picking a Category clears Industry (`els.industry.value = ""`) and vice versa, before calling
+`render()`. This is a deliberate UX choice the user asked for, not a data constraint - nothing
+stops both filters from being technically compatible; the sidebar just only lets one be active
+at a time.
 
 **Bundle drill-down**: expanding a bundle (list row click, or grid card → modal) shows bundle
 stats (`bundleStatsHtml()`) plus the full list of contained courses
@@ -263,15 +264,16 @@ the same two-class-selector override rather than assuming declaration order will
 
 **Third trap: a pixel `flex-basis` means something different depending on `flex-direction`,
 and the `@media (max-width: 640px)` block flips `.search-row` from `row` to `column`.**
-`.search-input-wrap` and `.tag-field` (originally also `.industry-field`, before Industry moved
-to the sidebar - see below) use `flex: 1 1 <px>` so they size sensibly *side by side* on
-desktop. But `flex-basis` sizes the **main axis** - width in `row` mode, height in `column`
-mode. Below 640px, `.search-row` becomes `flex-direction: column`, so an unguarded
-`flex-basis: 240px` on `.search-input-wrap` turned into a 240px-tall search box (confirmed via
-`getBoundingClientRect()` - the wrapper's flex-basis was literally being read as its height).
-Fixed by resetting `flex-basis: auto` for both fields inside that same media query. If you add
-another flex item to `.search-row` with a pixel basis, add it to that same mobile override or
-it will silently blow up at narrow widths - this is easy to miss because it looks fine at any
+`.search-input-wrap` (originally also `.tag-field` and `.industry-field`, before Tag was merged
+into the main search box and Industry moved to the sidebar - see above) uses `flex: 1 1 <px>` so
+multiple fields in `.search-row` size sensibly *side by side* on desktop. But `flex-basis` sizes
+the **main axis** - width in `row` mode, height in `column` mode. Below 640px, `.search-row`
+becomes `flex-direction: column`, so an unguarded `flex-basis: 240px` on `.search-input-wrap`
+turned into a 240px-tall search box (confirmed via `getBoundingClientRect()` - the wrapper's
+flex-basis was literally being read as its height). Fixed by resetting `flex-basis: auto` for
+that class inside the same media query. `.search-row` currently holds only the one search box,
+but if you add another flex item to it with a pixel basis, add it to that same mobile override
+or it will silently blow up at narrow widths - this is easy to miss because it looks fine at any
 viewport width above 640px.
 
 ## Testing changes
@@ -283,11 +285,12 @@ python3 -m http.server 8811
 ```
 
 then open `http://localhost:8811` and check:
-1. Free-text search filters and highlights correctly in both Courses and Bundles mode.
-2. Category, Industry (both selects), and Tag (text search) all filter correctly in Courses
-   mode. In Bundles mode, Category still filters via `bundle.scope` substring, Industry does a
-   strict match (selecting an industry shows only that industry's own By Industry bundle,
-   nothing else), and the Tag search bar disappears entirely (not just disabled).
+1. Free-text search filters and highlights correctly in both Courses and Bundles mode; in
+   Courses mode a tag value (e.g. `"NFPA"`) matches through the same box as a course name.
+2. Category and Industry both filter correctly in Courses mode, and selecting one clears the
+   other (check both directions). In Bundles mode, Category still filters via `bundle.scope`
+   substring, Industry does a strict match (selecting an industry shows only that industry's own
+   By Industry bundle, nothing else), and the mutual-clear behavior still applies.
 3. Switching Courses ↔ Bundles updates the search placeholder, the table header, and the result
    count noun ("courses found" vs "bundles found"), and preserves the current Category/Industry
    selection.

@@ -39,8 +39,6 @@
     search: document.getElementById("search-input"),
     industry: document.getElementById("industry-select"),
     category: document.getElementById("category-select"),
-    tag: document.getElementById("tag-search-input"),
-    tagField: document.getElementById("tag-field"),
     clear: document.getElementById("clear-btn"),
     resultCount: document.getElementById("result-count"),
     resultsBody: document.getElementById("results-body"),
@@ -162,17 +160,14 @@
       q: els.search.value.trim(),
       category: els.category.value,
       industry: els.industry.value,
-      tag: els.tag.value.trim(),
     };
   }
 
   function filterCatalog(f) {
     var q = f.q.toLowerCase();
-    var tagQ = f.tag.toLowerCase();
     return COURSES.filter(function (c) {
       if (f.category && c.category !== f.category) return false;
       if (f.industry && c.industryTags.indexOf(f.industry) === -1) return false;
-      if (tagQ && !(c.altTags || []).some(function (t) { return t.toLowerCase().indexOf(tagQ) !== -1; })) return false;
       if (q) {
         var hay = (
           c.name + " " + c.category + " " + c.family + " " + (c.industries || "") + " " +
@@ -507,8 +502,7 @@
     els.modeBundlesBtn.classList.toggle("active", mode === "bundles");
     els.modeCoursesBtn.setAttribute("aria-pressed", mode === "courses");
     els.modeBundlesBtn.setAttribute("aria-pressed", mode === "bundles");
-    els.search.placeholder = mode === "bundles" ? "Search by bundle name…" : "Search by course name…";
-    els.tagField.hidden = mode === "bundles"; // altTags only exist on courses, not bundles
+    els.search.placeholder = mode === "bundles" ? "Search by bundle name…" : "Search by course name or tag…";
     populateSortSelect();
     render();
   }
@@ -563,7 +557,6 @@
   function clearFilters() {
     els.search.value = "";
     els.industry.value = "";
-    els.tag.value = "";
     els.category.value = "";
     state.sort[state.mode] = "name:asc";
     els.sort.value = "name:asc";
@@ -575,9 +568,14 @@
     rebuildSelect(els.category, CATEGORIES, "All Categories");
 
     els.search.addEventListener("input", render);
-    els.industry.addEventListener("change", render);
-    els.category.addEventListener("change", render);
-    els.tag.addEventListener("input", render);
+    els.category.addEventListener("change", function () {
+      if (els.category.value) els.industry.value = "";
+      render();
+    });
+    els.industry.addEventListener("change", function () {
+      if (els.industry.value) els.category.value = "";
+      render();
+    });
     els.sort.addEventListener("change", function () {
       state.sort[state.mode] = els.sort.value;
       render();
