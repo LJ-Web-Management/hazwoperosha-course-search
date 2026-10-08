@@ -88,3 +88,28 @@ must be regenerated any time that spreadsheet changes. It is not meant to be han
 
 3. Reload `index.html` (locally via `python3 -m http.server`, or on the deployed GitHub Pages
    URL) and confirm the result count and a few searches look right before committing.
+4. Re-run the B2B catalog merge below - a full regeneration drops everything it added.
+
+## Merging the B2B catalog workbook
+
+`HAZWOPER-OSHA_Master_Course_Catalog_and_B2B_Bundles_v3.xlsx` uses a different layout
+(sheets **Master Course List**, **B2B Bundles & Seat Tiers**, **Bundle Contents**) and is merged
+*on top of* the existing `assets/data.js` rather than replacing it:
+
+```bash
+pip install openpyxl
+python3 tools/merge_b2b_catalog.py /path/to/HAZWOPER-OSHA_..._v3.xlsx 43 74
+```
+
+What it does:
+- **New courses**: every Master Course List row whose name (or "Original Title") isn't already
+  in `COURSES` is added. "Citation" is split on ` – ` into `regBody` / `citation`; hours become
+  `"N Hours"` / `"15 Min"`; "Industry Library(ies)" map to the matching `... Bundle` industry tags.
+- **Renamed courses**: when the workbook retitles an existing course, the old name is kept and the
+  new title is appended to `altTags`, so either name finds it in search.
+- **Packs**: Bundle Contents rows `43 74` (the default) become bundles of type `Compliance Pack`
+  (Data Center Facilities Safety, Data Center Infrastructure Professional, Data Center Technician
+  Skills), priced from B2B Bundles & Seat Tiers. Each course in those rows takes the workbook's
+  "À La Carte Price per Seat" as its `msrp`, everywhere it appears.
+
+It is safe to re-run; existing courses and packs are matched by name, not duplicated.

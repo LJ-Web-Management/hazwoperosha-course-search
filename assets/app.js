@@ -149,7 +149,7 @@
     "<th>Type</th>" +
     "<th>Price Tier</th>" +
     "<th># Courses</th>" +
-    "<th>Price / Seat / Yr</th>" +
+    "<th>Price / Seat</th>" +
     "<th>Savings</th>" +
     "</tr>";
 
@@ -298,6 +298,11 @@
 
   // ---------- bundle detail content (shared by list-expand and modal) ----------
 
+  // Compliance Packs are a one-time price per seat; every other bundle type is a yearly seat.
+  function bundlePriceLabel(bundle) {
+    return bundle.type === "Compliance Pack" ? "Price / Seat (one-time)" : "Price / Seat / Yr";
+  }
+
   function bundleStatsHtml(bundle) {
     var savingsPct = fmtSavingsPct(bundle.savings);
     return (
@@ -306,7 +311,7 @@
       '<div class="bundle-stats">' +
       '<div class="bundle-stat"><div class="label">Price Tier</div><div class="value">' + escapeHtml(bundle.priceTier) + "</div></div>" +
       '<div class="bundle-stat"><div class="label">Total Courses</div><div class="value">' + fmtNumber(bundle.totalCourses) + "</div></div>" +
-      '<div class="bundle-stat"><div class="label">Bundle Price / Seat / Yr</div><div class="value">' + fmtMoney(bundle.bundlePrice) + "</div></div>" +
+      '<div class="bundle-stat"><div class="label">Bundle ' + bundlePriceLabel(bundle) + '</div><div class="value">' + fmtMoney(bundle.bundlePrice) + "</div></div>" +
       '<div class="bundle-stat"><div class="label">À La Carte Cost</div><div class="value">' + fmtMoney(bundle.costSeparate) + "</div></div>" +
       (savingsPct !== null
         ? '<div class="bundle-stat"><div class="label">Savings</div><div class="value">' + savingsPct + "%</div></div>"
@@ -413,7 +418,7 @@
       '<td data-label="Type"><span class="pill">' + escapeHtml(b.type) + "</span></td>" +
       '<td data-label="Price Tier">' + escapeHtml(b.priceTier) + "</td>" +
       '<td data-label="# Courses">' + fmtNumber(b.totalCourses) + "</td>" +
-      '<td data-label="Price / Seat / Yr" class="msrp-cell">' + fmtMoney(b.bundlePrice) + "</td>" +
+      '<td data-label="' + bundlePriceLabel(b) + '" class="msrp-cell">' + fmtMoney(b.bundlePrice) + "</td>" +
       '<td data-label="Savings">' + (savingsPct !== null ? savingsPct + "%" : "-") + "</td>";
 
     var detailTr = document.createElement("tr");

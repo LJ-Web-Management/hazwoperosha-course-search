@@ -9,7 +9,9 @@ Repo: https://github.com/LJ-Web-Management/hazwoperosha-course-search
 ## What this is
 
 A searchable/filterable tool over the course catalog, built from `ICTrainingUS_reviewed.xlsx`
-(source lives outside this repo, typically in the user's Downloads). It has **two search
+and then merged with `HAZWOPER-OSHA_Master_Course_Catalog_and_B2B_Bundles_v3.xlsx` via
+`tools/merge_b2b_catalog.py` (both sources live outside this repo, typically in the user's
+Downloads). It has **two search
 modes** - Courses and Bundles, toggled at the top of the page - rather than treating bundles
 as a filter on courses. There is **no add/edit/delete UI** - the catalog is read-only in the
 browser. To change course data, edit the spreadsheet and regenerate `assets/data.js` (see
@@ -26,7 +28,8 @@ assets/hazwoper-logo.png   full brand lockup (header), copied from the sibling "
                             Course Creation Program" Next.js project's public/brand/
 assets/favicon.png    square tab icon cropped from the biohazard mark in hazwoper-logo.png -
                        the full lockup is too wide to read at favicon size
-README.md            spreadsheet → data.js regeneration steps only
+README.md            spreadsheet → data.js regeneration + B2B merge steps only
+tools/merge_b2b_catalog.py   merges the v3 B2B workbook into data.js (see README)
 ```
 
 No `package.json`, no build tool. Editing `assets/app.js` or `assets/style.css` directly is
@@ -41,7 +44,8 @@ own footer style), or just restructure the sentence.
 
 Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
 
-- **`COURSES`**: array of ~1033 objects, one per Master Catalog row:
+- **`COURSES`**: array of ~1109 objects (1033 from the original sheet + 76 from the v3 B2B
+  workbook), one per Master Catalog row:
   `{ id, category, family, name, type, regBody, citation, industries, duration, msrp,
   bundleClass, industryTags, altTags }`. `industryTags` is an array (split on `;` from the
   source "Industry Bundle Tags" column) - each entry is the *name* of a "By Industry" bundle
@@ -58,7 +62,10 @@ Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
   `"1910.120"` or `"NFPA 70E"` finds courses citing that regulation/standard, even though
   neither field is shown as a filter control - text search is the only way to reach them).
 
-- **`BUNDLES`**: array of 80 objects, one per Bundles Overview row:
+- **`BUNDLES`**: array of 83 objects - 80 from Bundles Overview plus 3 `type: "Compliance Pack"`
+  Data Center packs from the v3 workbook (one-time per-seat price, not per year - `bundlePriceLabel()`
+  in `app.js` switches the price label on that type; their `priceTier` is the workbook's "Bundle
+  Model" text, which isn't on the tier ladder and so sorts last on "Price Tier"):
   `{ id, type, name, scope, totalCourses, inclFlat, alaCarteAddons, costSeparate, priceTier,
   bundlePrice, savings, alaCarteTerms }`. `type` is `"By Industry"` or `"By Category"`.
   **`id` is `${type}||${name}`, not just `name`** - two bundle names collide across types
@@ -74,7 +81,7 @@ Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
 - **`INDUSTRIES`**: sorted array of the ~20 distinct "By Industry" bundle names - used to
   populate the Industry filter dropdown. This is derived from `BUNDLES`, not a separate source.
 
-- **`CATEGORIES`**: sorted array of the ~59 distinct `category` values from `COURSES`.
+- **`CATEGORIES`**: sorted array of the ~61 distinct `category` values from `COURSES`.
 
 Regenerating this file is documented in `README.md` - that's the only doc that should contain
 the extraction script, to avoid drifting duplicate copies.
@@ -86,7 +93,9 @@ this file at the user's request, with `savings` recalculated to match
 with the new price. **The next full regeneration from a spreadsheet will silently overwrite
 both back to the spreadsheet's values** unless the spreadsheet itself is updated first or these
 two overrides are reapplied after regenerating. If you regenerate `data.js`, check whether these
-two bundles still need the override.
+two bundles still need the override, and re-run `tools/merge_b2b_catalog.py` afterwards - a full
+regeneration also drops the 76 v3 courses, the 3 Compliance Packs, and the v3 repricing of the
+14 courses in those packs (e.g. Data Center Arc Flash 49.99 → 99.99).
 
 ## App behavior (`assets/app.js`)
 
