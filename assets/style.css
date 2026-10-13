@@ -439,6 +439,10 @@ table.results-table td {
   font-size: 13.5px;
 }
 
+.detail-grid .value a {
+  overflow-wrap: anywhere;
+}
+
 .empty-state {
   text-align: center;
   padding: 60px 20px;

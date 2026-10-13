@@ -35,6 +35,9 @@
 
   var TIER_RANK = { Starter: 0, Standard: 1, Advanced: 2, Comprehensive: 3, Enterprise: 4 };
 
+  // Base of the public site; LMS course page URLs in data.js are relative to it.
+  var SITE_BASE_URL = "https://www.hazwoper-osha.com/";
+
   var els = {
     search: document.getElementById("search-input"),
     industry: document.getElementById("industry-select"),
@@ -171,7 +174,8 @@
       if (q) {
         var hay = (
           c.name + " " + c.category + " " + c.family + " " + (c.industries || "") + " " +
-          (c.regBody || "") + " " + (c.citation || "") + " " + (c.altTags || []).join(" ")
+          (c.regBody || "") + " " + (c.citation || "") + " " + (c.altTags || []).join(" ") + " " +
+          (c.lms ? (c.lms.sku || "") + " " + (c.lms.url || "") : "")
         ).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
@@ -263,12 +267,35 @@
 
   // ---------- course detail content (shared by list-expand and modal) ----------
 
+  // LMS status / SKU / course page, from the LMS course export (tools/merge_lms_courses.py).
+  function lmsDetailHtml(lms) {
+    if (!lms) {
+      return '<div><div class="label">LMS Status</div><div class="value"><span class="pill">Not in LMS</span></div></div>';
+    }
+    var published = lms.page === "Published";
+    return (
+      '<div><div class="label">LMS Status</div><div class="value">' +
+      '<span class="pill' + (published ? " pill-accent" : "") + '" style="margin:2px 4px 2px 0;">' +
+      (published ? "Published" : "Unpublished") + "</span>" +
+      '<span class="pill" style="margin:2px 4px 2px 0;">Content ' + escapeHtml(lms.content || "Unknown") + "</span>" +
+      "</div></div>" +
+      '<div><div class="label">SKU</div><div class="value">' + escapeHtml(lms.sku || "-") + "</div></div>" +
+      '<div><div class="label">Course Page</div><div class="value">' +
+      (lms.url
+        ? '<a href="' + escapeHtml(encodeURI(SITE_BASE_URL + lms.url)) + '" target="_blank" rel="noopener">' + escapeHtml(lms.url) + "</a>" +
+          (published ? "" : " (unpublished)")
+        : "-") +
+      "</div></div>"
+    );
+  }
+
   function detailGridHtml(c, extraStatus) {
     return (
       '<div class="detail-grid">' +
       (extraStatus
         ? '<div><div class="label">Bundle Inclusion</div><div class="value"><span class="pill pill-accent">' + escapeHtml(extraStatus) + "</span></div></div>"
         : "") +
+      lmsDetailHtml(c.lms) +
       '<div><div class="label">Regulatory Body</div><div class="value">' + escapeHtml(c.regBody || "-") + "</div></div>" +
       '<div><div class="label">Citation</div><div class="value">' + escapeHtml(c.citation || "-") + "</div></div>" +
       '<div><div class="label">Course Family</div><div class="value">' + escapeHtml(c.family || "-") + "</div></div>" +

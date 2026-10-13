@@ -10,8 +10,9 @@ Repo: https://github.com/LJ-Web-Management/hazwoperosha-course-search
 
 A searchable/filterable tool over the course catalog, built from `ICTrainingUS_reviewed.xlsx`
 and then merged with `HAZWOPER-OSHA_Master_Course_Catalog_and_B2B_Bundles_v3.xlsx` via
-`tools/merge_b2b_catalog.py` (both sources live outside this repo, typically in the user's
-Downloads). It has **two search
+`tools/merge_b2b_catalog.py`, then with the live LMS export
+(`HAZWOPER-OSHA-ALL-COURSES-LIST-<date>.xlsx`) via `tools/merge_lms_courses.py` (all sources live
+outside this repo, typically in the user's Downloads). It has **two search
 modes** - Courses and Bundles, toggled at the top of the page - rather than treating bundles
 as a filter on courses. There is **no add/edit/delete UI** - the catalog is read-only in the
 browser. To change course data, edit the spreadsheet and regenerate `assets/data.js` (see
@@ -30,6 +31,7 @@ assets/favicon.png    square tab icon cropped from the biohazard mark in hazwope
                        the full lockup is too wide to read at favicon size
 README.md            spreadsheet → data.js regeneration + B2B merge steps only
 tools/merge_b2b_catalog.py   merges the v3 B2B workbook into data.js (see README)
+tools/merge_lms_courses.py   merges the live LMS course export into data.js (see README)
 ```
 
 No `package.json`, no build tool. Editing `assets/app.js` or `assets/style.css` directly is
@@ -44,8 +46,8 @@ own footer style), or just restructure the sentence.
 
 Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
 
-- **`COURSES`**: array of ~1109 objects (1033 from the original sheet + 76 from the v3 B2B
-  workbook), one per Master Catalog row:
+- **`COURSES`**: array of ~1119 objects (1033 from the original sheet + 76 from the v3 B2B
+  workbook + 10 from the LMS export), one per Master Catalog row:
   `{ id, category, family, name, type, regBody, citation, industries, duration, msrp,
   bundleClass, industryTags, altTags }`. `industryTags` is an array (split on `;` from the
   source "Industry Bundle Tags" column) - each entry is the *name* of a "By Industry" bundle
@@ -61,6 +63,12 @@ Four globals, loaded before `app.js` via `<script src="assets/data.js">`:
   Course search (`filterCatalog`) also matches against `regBody` and `citation` (e.g. searching
   `"1910.120"` or `"NFPA 70E"` finds courses citing that regulation/standard, even though
   neither field is shown as a filter control - text search is the only way to reach them).
+  Courses in the live LMS export also carry **`lms`**: `{ id, sku, url, content, page }` (`url`
+  is relative to `SITE_BASE_URL` in `app.js`; `page` is `"Published"`/`"Unpublish"`, `content` is
+  `"Available"`/`"Not Available"`). ~427 catalog courses have no `lms` key and show "Not in LMS".
+  For LMS courses `msrp` is the **LMS price**, not the spreadsheet estimate (user's choice), so a
+  bundle's `costSeparate`/`savings` can disagree with the sum of its course prices. SKU and URL
+  are in the search `hay`; `lmsDetailHtml()` renders them inside `detailGridHtml`.
 
 - **`BUNDLES`**: array of 83 objects - 80 from Bundles Overview plus 3 `type: "Compliance Pack"`
   Data Center packs from the v3 workbook (one-time per-seat price, not per year - `bundlePriceLabel()`
@@ -95,7 +103,8 @@ both back to the spreadsheet's values** unless the spreadsheet itself is updated
 two overrides are reapplied after regenerating. If you regenerate `data.js`, check whether these
 two bundles still need the override, and re-run `tools/merge_b2b_catalog.py` afterwards - a full
 regeneration also drops the 76 v3 courses, the 3 Compliance Packs, and the v3 repricing of the
-14 courses in those packs (e.g. Data Center Arc Flash 49.99 → 99.99).
+14 courses in those packs (e.g. Data Center Arc Flash 49.99 → 99.99). Then re-run
+`tools/merge_lms_courses.py` - LMS prices override the v3 repricing for any course in the LMS.
 
 ## App behavior (`assets/app.js`)
 

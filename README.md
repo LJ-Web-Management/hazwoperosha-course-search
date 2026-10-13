@@ -88,7 +88,8 @@ must be regenerated any time that spreadsheet changes. It is not meant to be han
 
 3. Reload `index.html` (locally via `python3 -m http.server`, or on the deployed GitHub Pages
    URL) and confirm the result count and a few searches look right before committing.
-4. Re-run the B2B catalog merge below - a full regeneration drops everything it added.
+4. Re-run the B2B catalog merge below, then the LMS merge after it - a full regeneration drops
+   everything they added.
 
 ## Merging the B2B catalog workbook
 
@@ -113,3 +114,26 @@ What it does:
   "À La Carte Price per Seat" as its `msrp`, everywhere it appears.
 
 It is safe to re-run; existing courses and packs are matched by name, not duplicated.
+
+## Merging the LMS course export
+
+`HAZWOPER-OSHA-ALL-COURSES-LIST-<date>.xlsx` is the live LMS export (sheet **Courses**: `id,
+course_name, category, price, hours, sku, course_page_url, content_status, course_page_status`).
+Run it last, after the B2B merge:
+
+```bash
+python3 tools/merge_lms_courses.py /path/to/HAZWOPER-OSHA-ALL-COURSES-LIST-<date>.xlsx
+```
+
+What it does:
+- **Matched courses** (by name, an existing alternate name, or the script's `RENAMES` table)
+  take the LMS price as `msrp`, in `COURSES` and in every bundle's course list, and gain an
+  `lms` object (`id`, `sku`, `url`, `content`, `page`) shown as LMS Status / SKU / Course Page in
+  the detail view. Renamed courses get the LMS title in `altTags`. Bundle prices and savings are
+  not touched.
+- **New courses** listed in `NEW_FROM` are added, copying metadata from a similar catalog course.
+- **Test/demo rows** listed in `SKIP` are ignored.
+- Catalog courses missing from the export are kept and show "Not in LMS".
+
+If the export contains a course the script doesn't recognize, it stops and lists it - add it
+to `SKIP`, `RENAMES` or `NEW_FROM` and re-run. It is safe to re-run.
